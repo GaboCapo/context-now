@@ -1,0 +1,5 @@
+#!/bin/bash
+# Context-Now Launcher Script
+
+# Führe context-now.js mit den übergebenen Argumenten aus
+node /home/commander/Code/context-now/context-now.js "$@"

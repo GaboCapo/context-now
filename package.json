@@ -1,11 +1,15 @@
 {
   "name": "context-now",
-  "version": "1.0.0",
-  "description": "Context tracker for development teams",
+  "version": "2.0.0",
+  "description": "Multi-project context tracker and management tool",
+  "main": "context-now.js",
+  "bin": {
+    "context-now": "./context-now.js"
+  },
   "scripts": {
     "context": "node tools/context-tracker/context-tracker.js status",
-    "context:sync": "node tools/context-tracker/context-tracker.js sync",
-    "context:update": "node tools/context-tracker/context-tracker.js update"
+    "install-global": "npm link",
+    "uninstall-global": "npm unlink"
   },
   "type": "commonjs"
 }

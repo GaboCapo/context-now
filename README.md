@@ -1,101 +1,179 @@
-# 🎯 Context-Tracker Tool
+# 🎯 Context-Now - Multi-Projekt Management Tool
 
-Ein intelligentes Tool zur Übersicht über Issues, Branches und Pull Requests in deinem Projekt.
+Ein intelligentes Tool zur zentralen Verwaltung von Projekt-Kontexten, Issues, Branches und Pull Requests über mehrere Projekte hinweg.
 
-## 🚀 Installation in dein Projekt
+## ✨ Features
 
-### 1. Tool kopieren
+- **Multi-Projekt Management**: Verwalte mehrere Projekte zentral
+- **Symlink-basiert**: Templates und Scripts werden geteilt, Daten bleiben projektspezifisch
+- **Intelligente Empfehlungen**: Kontextbewusste Arbeitsempfehlungen basierend auf Issue-Beziehungen
+- **Entwickler-Übergabe**: Spezielle Modi für nahtlose Team-Übergaben
+- **Git-Integration**: Live-Synchronisation mit lokalen und Remote-Branches
+
+## 🚀 Installation
+
+### 1. Repository klonen
 ```bash
-# In dein Projektverzeichnis wechseln
-cd /pfad/zu/deinem/projekt
-
-# Tools kopieren
-cp -r /home/commander/Code/context-now/tools .
-
-# NPM Script hinzufügen zu package.json
-# Füge in "scripts" Sektion hinzu:
-"context": "node tools/context-tracker/context-tracker.js status"
+git clone <repository-url> ~/Code/context-now
+cd ~/Code/context-now
 ```
 
-### 2. Konfiguration anpassen
+### 2. Alias einrichten (optional)
+```bash
+# Füge zu ~/.bashrc oder ~/.zshrc hinzu:
+alias cn="/home/commander/Code/context-now/cn"
 
-Die JSON-Dateien im `tools/context-tracker/` Verzeichnis anpassen:
+# Oder direkt ausführbar machen:
+chmod +x ~/Code/context-now/cn
+```
 
-- **issues.json**: Deine offenen GitHub Issues
-- **prs.json**: Deine offenen Pull Requests  
-- **project-memory.json**: Deine aktiven Feature-Branches
+## 📋 Verwendung
 
-Template-Dateien sind vorhanden als `*.template.json`.
+### Projekt verbinden
+```bash
+cn -c /pfad/zu/deinem/projekt
+# oder
+~/Code/context-now/cn -c ~/Code/mein-projekt
+```
 
-### 3. Verwendung
+### Projekte auflisten
+```bash
+cn -l
+```
+
+### Zu Projekt wechseln
+```bash
+cn -g 1                    # Nach Nummer
+cn -g persona-nexus-manager # Nach Name
+```
+
+### Projekt-Status anzeigen
+```bash
+cn -s                      # Aktuelles Projekt
+cn -s persona-nexus-manager # Spezifisches Projekt
+```
+
+### Projekt trennen
+```bash
+cn -d persona-nexus-manager
+```
+
+## 🔧 Was passiert beim Verbinden?
+
+1. **Symlinks werden erstellt**:
+   - `context-tracker.js` → Hauptscript (geteilt)
+   - `*.template.json` → Templates (geteilt, read-only)
+
+2. **Projekt-spezifische Dateien werden erstellt**:
+   - `issues.json` - Deine Issues
+   - `prs.json` - Pull Requests
+   - `project-memory.json` - Branch-Verknüpfungen
+   - `github-branches.json` - GitHub Branch-Liste
+   - `issue-relations.json` - Issue-Beziehungen
+
+3. **NPM Scripts werden hinzugefügt**:
+   - `npm run context` - Status anzeigen
+   - `npm run context:sync` - Repository synchronisieren
+   - `npm run context:update` - Sync + Status
+
+## 📂 Struktur
+
+```
+context-now/
+├── context-now.js         # Multi-Projekt Manager
+├── cn                     # Launcher Script
+├── projects.json          # Projekt-Registry
+└── tools/
+    └── context-tracker/
+        ├── context-tracker.js    # Hauptscript (geteilt via Symlink)
+        ├── *.template.json        # Templates (geteilt)
+        └── DATA_SOURCES.md        # Dokumentation
+```
+
+Projekte:
+```
+dein-projekt/
+└── tools/
+    └── context-tracker/
+        ├── context-tracker.js → symlink
+        ├── *.template.json → symlinks
+        ├── issues.json (projektspezifisch)
+        ├── prs.json (projektspezifisch)
+        └── ...
+```
+
+## 🎯 Beispiel-Workflow
 
 ```bash
-# Status anzeigen
+# 1. Projekt verbinden
+cn -c ~/Code/mein-projekt
+
+# 2. Ins Projekt wechseln
+cd ~/Code/mein-projekt
+
+# 3. Status checken
+npm run context
+
+# 4. JSON-Dateien mit echten Daten füllen
+vim tools/context-tracker/issues.json
+
+# 5. Wieder Status checken
 npm run context
 ```
 
-## 📊 Was das Tool zeigt
+## 🔄 Updates
 
-- **Projektübersicht**: Aktueller Branch
-- **Status**: Anzahl offener Issues, Branches, PRs
-- **Kritische Issues**: Priorisierte Aufgaben
-- **Branch-Beziehungen**: Welcher Branch an welchem Issue arbeitet
-- **Empfehlungen**: Was als nächstes zu tun ist
+Wenn das Tool verbessert wird, erhalten alle verbundenen Projekte automatisch die Updates, da sie via Symlinks verbunden sind!
 
-## 🔧 Anpassung für dein Projekt
+## 📝 JSON-Dateien pflegen
 
-### Issues Format (issues.json)
+### issues.json
 ```json
-{
-  "id": "#123",
-  "title": "Issue Titel",
-  "status": "open",
-  "priority": "critical|high|medium|low",
-  "labels": ["bug", "feature", etc.]
-}
+[
+  {
+    "id": "#123",
+    "title": "Feature implementieren",
+    "status": "open",
+    "priority": "high",
+    "labels": ["feature", "frontend"]
+  }
+]
 ```
 
-### Pull Requests Format (prs.json)
+### issue-relations.json (für intelligente Empfehlungen)
 ```json
 {
-  "id": "PR-1",
-  "branch": "feature/branch-name",
-  "status": "open|merged|closed",
-  "issue": "#123"
-}
-```
-
-### Branch Memory Format (project-memory.json)
-```json
-{
-  "branch-name": {
-    "created": "YYYY-MM-DD",
-    "issue": "#123",
-    "lastActivity": "YYYY-MM-DD"
+  "#100": {
+    "type": "epic",
+    "includes": ["#101", "#102", "#103"],
+    "description": "Epic beinhaltet diese Issues"
   }
 }
 ```
 
-## 🎯 Best Practices
+## 🤝 Team-Kollaboration
 
-1. **Vor jedem Branch-Wechsel**: `npm run context` ausführen
-2. **Nach Issue-Abschluss**: Nächste Priorität checken
-3. **Bei Team-Meetings**: Übersicht zeigen
-4. **Regelmäßig aktualisieren**: JSON-Dateien mit echten Daten pflegen
+Das Tool unterstützt Entwickler-Übergaben:
 
-## 💡 Tipps
+```bash
+# In deinem Projekt:
+npm run context:handover
 
-- Das Tool warnt bei zu vielen Branches (>20)
-- Kritische Issues werden hervorgehoben
-- Empfehlungen basieren auf Prioritäten
-- Unzugeordnete Branches werden markiert
+# Zeigt:
+# - Uncommitted Changes
+# - Letzter Commit
+# - Unfertige Arbeit
+# - Nächste Schritte
+```
 
-## 🐛 Troubleshooting
+## 📌 Tipps
 
-- **"Branch nicht getrackt"**: Branch zu project-memory.json hinzufügen
-- **Keine Empfehlung**: Issues.json aktualisieren
-- **Falsche Zahlen**: JSON-Dateien prüfen
+- **Täglich aktualisieren**: `github-branches.json` mit echten GitHub-Daten
+- **Issues pflegen**: Halte `issues.json` aktuell
+- **Relations nutzen**: Definiere EPICs und Bug-Beziehungen
+- **Symlinks behalten**: Lösche nie die Symlinks, nur die JSON-Daten sind projektspezifisch
 
 ---
 
-Entwickelt für bessere Projekt-Koordination! 🚀
+**Version**: 2.0.0  
+**Lizenz**: MIT
