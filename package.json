@@ -1,0 +1,11 @@
+{
+  "name": "context-now",
+  "version": "1.0.0",
+  "description": "Context tracker for development teams",
+  "scripts": {
+    "context": "node tools/context-tracker/context-tracker.js status",
+    "context:sync": "node tools/context-tracker/context-tracker.js sync",
+    "context:update": "node tools/context-tracker/context-tracker.js update"
+  },
+  "type": "commonjs"
+}

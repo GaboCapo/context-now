@@ -1,0 +1,25 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project-specific JSON data (diese Dateien sind projektspezifisch)
+tools/context-tracker/issues.json
+tools/context-tracker/prs.json
+tools/context-tracker/project-memory.json
+tools/context-tracker/github-branches.json
+tools/context-tracker/issue-relations.json
+
+# Keep templates
+!tools/context-tracker/*.template.json
