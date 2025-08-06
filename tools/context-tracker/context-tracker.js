@@ -13,12 +13,12 @@ try {
     // SSH-Modul nicht verfügbar
 }
 
-// Paths zu den JSON-Dateien
-const ISSUES_FILE = path.join(__dirname, 'issues.json');
-const PRS_FILE = path.join(__dirname, 'prs.json');
-const MEMORY_FILE = path.join(__dirname, 'project-memory.json');
-const GITHUB_BRANCHES_FILE = path.join(__dirname, 'github-branches.json');
-const CLOSED_BRANCHES_FILE = path.join(__dirname, 'closed-branches.json');
+// Paths zu den JSON-Dateien - WICHTIG: Verwende process.cwd() für lokale Projekt-Dateien!
+const ISSUES_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'issues.json');
+const PRS_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'prs.json');
+const MEMORY_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'project-memory.json');
+const GITHUB_BRANCHES_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'github-branches.json');
+const CLOSED_BRANCHES_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'closed-branches.json');
 
 // Farben für Terminal-Output
 const colors = {
@@ -511,14 +511,14 @@ async function updateGitHubData() {
 
 // Erweiterte Status-Anzeige
 async function showStatus() {
+    // DIREKT LADEN WIE FRÜHER!
+    const issues = loadJSON(ISSUES_FILE);
+    const prs = loadJSON(PRS_FILE);
     const memory = loadJSON(MEMORY_FILE, {});
     const currentBranch = getCurrentBranch();
     const gitStatus = getGitStatus();
     
     console.log(`${colors.cyan}🔄 Prüfe Status...${colors.reset}`);
-    
-    // GitHub-Daten aktualisieren
-    const { issues, prs } = await updateGitHubData();
     
     // Remote Branches holen
     const localBranches = getLocalBranches();
