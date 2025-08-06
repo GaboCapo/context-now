@@ -75,6 +75,8 @@ Es gibt mehrere Wege, dem Tool den Token zur Verfügung zu stellen.
   Setze die Variable in deiner aktuellen Shell-Sitzung:
   ```bash
   export GITHUB_TOKEN="ghp_DEIN_TOKEN_HIER"
+  # Alternativ wird auch GH_TOKEN unterstützt
+  export GH_TOKEN="ghp_DEIN_TOKEN_HIER"
   ```
   Für eine permanente Speicherung kannst du diese Zeile zu deiner `~/.bashrc` oder `~/.zshrc` hinzufügen.
 
@@ -91,3 +93,25 @@ Es gibt mehrere Wege, dem Tool den Token zur Verfügung zu stellen.
 - Erstelle Tokens immer nur mit den minimal notwendigen Berechtigungen.
 - Rotiere deine Tokens regelmäßig, d.h. erstelle einen neuen und lösche den alten.
 - Wenn ein Token versehentlich veröffentlicht wurde, widerrufe ihn sofort auf GitHub.
+
+---
+
+### Rate Limits und Nutzung ohne Token
+
+Die GitHub API hat Ratenbegrenzungen, um Missbrauch zu verhindern.
+
+- **Ohne Token**: Du bist auf ca. 60 Anfragen pro Stunde beschränkt. Dies ist ausreichend für gelegentliche Nutzung bei öffentlichen Repositories.
+- **Mit Token**: Dein Limit erhöht sich auf 5.000 Anfragen pro Stunde, was für die intensive Nutzung, auch in großen Teams, problemlos ausreicht.
+
+Das Tool funktioniert auch ohne Token für öffentliche Repositories oder wenn du die `github-branches.json` manuell pflegst. Für private Repositories ist ein Token zwingend erforderlich.
+
+### Fehlerbehebung (Troubleshooting)
+
+- **"Repository nicht gefunden oder privat"**:
+  Dein Token fehlt oder hat nicht die notwendigen `repo`-Berechtigungen für dieses Repository.
+
+- **"GitHub API Rate Limit erreicht"**:
+  Du hast die maximale Anzahl an Anfragen ohne Token erreicht. Konfiguriere einen Token, um das Limit zu erhöhen.
+
+- **"GitHub API Zugriff verweigert" / "Bad credentials"**:
+  Dein Token ist ungültig, abgelaufen oder wurde widerrufen. Erstelle einen neuen Token.

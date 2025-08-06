@@ -18,6 +18,8 @@ Diese Dokumentation gibt dir einen umfassenden Überblick über alle Funktionen,
   - Erfahre, wie du das Tool für deine Projekte konfigurierst, inklusive der Anbindung an die GitHub API.
 - **[Contributing](contributing.md)**
   - Du möchtest zum Projekt beitragen? Hier findest du alle nötigen Informationen.
+- **[Fehlerbehebung](troubleshooting.md)**
+  - Lösungen für häufige Probleme und Fehlermeldungen.
 
 ## Haupt-Features
 
