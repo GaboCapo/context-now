@@ -10,13 +10,13 @@ Ein intelligentes Tool zur Verwaltung von Git-Projekt-Kontexten, Issues, Branche
 
 ## 📚 Dokumentation
 
-**Die vollständige Dokumentation für dieses Projekt befindet sich jetzt im [docs](./docs/index.md) Verzeichnis.**
+**Die vollständige Dokumentation für dieses Projekt befindet sich jetzt im [docs](./docs/de/index.md) Verzeichnis.**
 
 Dort findest du detaillierte Anleitungen zu:
-- **[Installation](./docs/installation.md)**: Wie du das Tool auf deinem System einrichtest.
-- **[Benutzeranleitung](./docs/usage.md)**: Wie du die Befehle und Workflows nutzt.
-- **[Konfiguration](./docs/configuration.md)**: Wie du das Tool an deine Bedürfnisse anpasst.
-- **[Contributing](./docs/contributing.md)**: Wie du zum Projekt beitragen kannst.
+- **[Installation](./docs/de/installation.md)**: Wie du das Tool auf deinem System einrichtest.
+- **[Benutzeranleitung](./docs/de/usage.md)**: Wie du die Befehle und Workflows nutzt.
+- **[Konfiguration](./docs/de/configuration.md)**: Wie du das Tool an deine Bedürfnisse anpasst.
+- **[Contributing](./docs/de/contributing.md)**: Wie du zum Projekt beitragen kannst.
 
 ---
 
@@ -34,8 +34,8 @@ Dort findest du detaillierte Anleitungen zu:
 # Lade das Installations-Skript herunter und führe es aus
 curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/quick-setup.sh | bash
 ```
-Für weitere Installationsmethoden, siehe die [Installationsanleitung](./docs/installation.md).
+Für weitere Installationsmethoden, siehe die [Installationsanleitung](./docs/de/installation.md).
 
 ## 🤝 Contributing
 
-Wir freuen uns über Beiträge! Bitte lies die [Contributing Guidelines](./docs/contributing.md), um zu erfahren, wie du helfen kannst.
+Wir freuen uns über Beiträge! Bitte lies die [Contributing Guidelines](./docs/de/contributing.md), um zu erfahren, wie du helfen kannst.
