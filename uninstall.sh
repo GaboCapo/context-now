@@ -89,7 +89,7 @@ echo ""
 
 # Confirmation
 read -p "Do you want to continue? (y/N): " -n 1 -r
-echo
+echo ""
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${YELLOW}Uninstallation cancelled.${NC}"
     exit 0
@@ -119,7 +119,7 @@ if [ -d "$CONFIG_DIR" ]; then
     echo ""
     echo -e "${YELLOW}Configuration directory contains your project data.${NC}"
     read -p "Remove configuration directory too? (y/N): " -n 1 -r
-    echo
+    echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "  • Removing configuration directory..."
         rm -rf "$CONFIG_DIR"
