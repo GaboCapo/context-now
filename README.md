@@ -4,6 +4,9 @@
   <img width="256" height="256" alt="Context-Now Logo" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
 </p>
 
+⚠️ This project is still under active development. Some features may not work as expected, especially the recommendations generated at the end of the code.
+
+
 # 🎯 Context-Now - Git Project Context Tracker
 
 An intelligent tool for managing Git project contexts, issues, branches and pull requests with automatic synchronization.
