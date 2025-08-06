@@ -48,96 +48,30 @@ function loadJSON(filepath, defaultValue = []) {
         return defaultValue;
     }
 }
+// JSON speichern
+function saveJSON(filepath, data) {
+    fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+}
 
-// Git-Befehle sicher ausführen
+// Git-Befehl ausführen
 function gitCommand(command, defaultValue = '') {
     try {
-        return execSync(command, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+        return execSync(command, { encoding: 'utf8' }).trim();
     } catch (e) {
         return defaultValue;
     }
 }
 
-// Prüfe ob Branch gemerged wurde
-function isBranchMerged(branch) {
-    // Prüfe ob Branch in main/master gemerged wurde
-    const mergedInMain = gitCommand(`git branch --merged main 2>/dev/null | grep -w "${branch}"`, '');
-    const mergedInMaster = gitCommand(`git branch --merged master 2>/dev/null | grep -w "${branch}"`, '');
-    const mergedInDevelop = gitCommand(`git branch --merged develop 2>/dev/null | grep -w "${branch}"`, '');
-    
-    return !!(mergedInMain || mergedInMaster || mergedInDevelop);
-}
-
-// Closed/Merged Branches verwalten
-function updateClosedBranches(localBranches, remoteBranches) {
-    const closedBranches = loadJSON(CLOSED_BRANCHES_FILE, {});
-    const currentDate = new Date().toISOString();
-    
-    // Branches die lokal existieren aber nicht remote
-    const localOnly = localBranches.filter(b => !remoteBranches.includes(b));
-    
-    localOnly.forEach(branch => {
-        // Skip main/master/develop
-        if (['main', 'master', 'develop'].includes(branch)) return;
-        
-        // Prüfe ob bereits als geschlossen markiert
-        if (!closedBranches[branch]) {
-            // Prüfe ob gemerged
-            const merged = isBranchMerged(branch);
-            
-            if (merged) {
-                closedBranches[branch] = {
-                    status: 'merged',
-                    detectedAt: currentDate,
-                    lastSeen: currentDate
-                };
-            } else {
-                // Könnte ein neuer Branch sein oder remote gelöscht
-                // Prüfe ob es Commits gibt die nicht in main sind
-                const hasUnmergedCommits = gitCommand(
-                    `git rev-list --count main..${branch} 2>/dev/null`, 
-                    '0'
-                );
-                
-                if (parseInt(hasUnmergedCommits) === 0) {
-                    closedBranches[branch] = {
-                        status: 'likely-closed',
-                        detectedAt: currentDate,
-                        lastSeen: currentDate
-                    };
-                }
-            }
-        } else {
-            // Update last seen
-            closedBranches[branch].lastSeen = currentDate;
-        }
-    });
-    
-    // Branches die wieder remote sind (wiedereröffnet)
-    Object.keys(closedBranches).forEach(branch => {
-        if (remoteBranches.includes(branch)) {
-            delete closedBranches[branch];
-        }
-    });
-    
-    // Speichern
-    fs.writeFileSync(CLOSED_BRANCHES_FILE, JSON.stringify(closedBranches, null, 2));
-    
-    return closedBranches;
-}
-
-// GitHub Repository Info ermitteln
+// GitHub Repo Info extrahieren
 function getGitHubInfo() {
-    const remoteUrl = gitCommand('git config --get remote.origin.url', '');
+    const remoteUrl = gitCommand('git config --get remote.origin.url');
+    if (!remoteUrl) return null;
     
-    if (!remoteUrl) {
-        return null;
-    }
-    
-    // Parse GitHub URL (ssh oder https)
-    let match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)(\.git)?$/);
+    // Parse verschiedene URL-Formate
+    let match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
     if (!match) {
-        match = remoteUrl.match(/github\.com\/([^/]+)\/([^/.]+)(\.git)?$/);
+        // Versuche SSH-Config Format (z.B. git@github-context-now:owner/repo)
+        match = remoteUrl.match(/github-[^:]+:([^/]+)\/([^/.]+)/);
     }
     
     if (match) {
@@ -146,17 +80,132 @@ function getGitHubInfo() {
             repo: match[2]
         };
     }
-    
     return null;
 }
 
-// GitHub API aufrufen
-function fetchGitHubBranches(owner, repo) {
+// GitHub Issues abrufen
+async function fetchGitHubIssues(owner, repo) {
     return new Promise((resolve, reject) => {
-        const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+        const token = process.env.GITHUB_TOKEN || '';
+        
+        const options = {
+            hostname: 'api.github.com',
+            path: `/repos/${owner}/${repo}/issues?state=all&per_page=100`,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Context-Tracker',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        };
+        
+        if (token) {
+            options.headers['Authorization'] = `token ${token}`;
+        }
+        
+        https.get(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            
+            res.on('end', () => {
+                if (res.statusCode === 200) {
+                    try {
+                        const issues = JSON.parse(data);
+                        const formattedIssues = issues.map(issue => ({
+                            id: `#${issue.number}`,
+                            title: issue.title,
+                            status: issue.state,
+                            priority: getPriorityFromLabels(issue.labels),
+                            labels: issue.labels.map(l => l.name),
+                            assignee: issue.assignee?.login || null,
+                            created_at: issue.created_at,
+                            updated_at: issue.updated_at,
+                            pull_request: !!issue.pull_request
+                        })).filter(i => !i.pull_request); // Nur echte Issues, keine PRs
+                        resolve(formattedIssues);
+                    } catch (e) {
+                        reject(e);
+                    }
+                } else {
+                    reject(new Error(`GitHub API: ${res.statusCode}`));
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
+// Priorität aus Labels extrahieren
+function getPriorityFromLabels(labels) {
+    const labelNames = labels.map(l => l.name.toLowerCase());
+    if (labelNames.some(l => l.includes('critical') || l.includes('urgent'))) return 'critical';
+    if (labelNames.some(l => l.includes('high'))) return 'high';
+    if (labelNames.some(l => l.includes('medium'))) return 'medium';
+    if (labelNames.some(l => l.includes('low'))) return 'low';
+    return 'normal';
+}
+// GitHub Pull Requests abrufen
+async function fetchGitHubPRs(owner, repo) {
+    return new Promise((resolve, reject) => {
+        const token = process.env.GITHUB_TOKEN || '';
+        
+        const options = {
+            hostname: 'api.github.com',
+            path: `/repos/${owner}/${repo}/pulls?state=all&per_page=100`,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Context-Tracker',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        };
+        
+        if (token) {
+            options.headers['Authorization'] = `token ${token}`;
+        }
+        
+        https.get(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            
+            res.on('end', () => {
+                if (res.statusCode === 200) {
+                    try {
+                        const prs = JSON.parse(data);
+                        const formattedPRs = prs.map(pr => ({
+                            id: `#${pr.number}`,
+                            title: pr.title,
+                            status: pr.state,
+                            branch: pr.head.ref,
+                            base: pr.base.ref,
+                            author: pr.user.login,
+                            created_at: pr.created_at,
+                            updated_at: pr.updated_at,
+                            mergeable: pr.mergeable,
+                            draft: pr.draft
+                        }));
+                        resolve(formattedPRs);
+                    } catch (e) {
+                        reject(e);
+                    }
+                } else {
+                    reject(new Error(`GitHub API: ${res.statusCode}`));
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
+// GitHub Branches abrufen
+async function fetchGitHubBranches(owner, repo) {
+    return new Promise((resolve, reject) => {
+        const token = process.env.GITHUB_TOKEN || '';
         
         const headers = {
-            'User-Agent': 'context-tracker',
+            'User-Agent': 'Context-Tracker',
             'Accept': 'application/vnd.github.v3+json'
         };
         
@@ -198,7 +247,6 @@ function fetchGitHubBranches(owner, repo) {
         }).on('error', reject);
     });
 }
-
 // Aktuellen Branch ermitteln
 function getCurrentBranch() {
     return gitCommand('git rev-parse --abbrev-ref HEAD', 'main');
@@ -210,11 +258,11 @@ function getLocalBranches() {
     if (!output) return [];
     
     return output.split('\n')
-        .map(line => line.replace(/^\*?\s+/, '').trim())
-        .filter(branch => branch && !branch.includes('->'));
+        .map(branch => branch.trim().replace('* ', ''))
+        .filter(branch => branch && !branch.includes('HEAD'));
 }
 
-// Remote Branches abrufen
+// Remote Branches abrufen (mit Fallback)
 async function getRemoteBranches() {
     // Option 1: Versuche git fetch für aktuelle Daten (wenn SSH konfiguriert)
     try {
@@ -265,7 +313,7 @@ async function getRemoteBranches() {
         }
     }
     
-    // Option 2: GitHub API
+    // Option 3: GitHub API
     const githubInfo = getGitHubInfo();
     if (githubInfo) {
         try {
@@ -284,7 +332,7 @@ async function getRemoteBranches() {
         }
     }
     
-    // Option 3: Cache
+    // Option 4: Cache
     if (fs.existsSync(GITHUB_BRANCHES_FILE)) {
         try {
             const branches = JSON.parse(fs.readFileSync(GITHUB_BRANCHES_FILE, 'utf8'));
@@ -300,18 +348,16 @@ async function getRemoteBranches() {
         }
     }
     
-    // Option 4: Git Remote (wahrscheinlich veraltet)
+    // Option 5: Git Remote (wahrscheinlich veraltet)
     console.log(`${colors.red}  ⚠️  Verwende lokalen Git-Cache (wahrscheinlich veraltet!)${colors.reset}`);
     console.log(`${colors.cyan}  💡 Für private Repos: Richte SSH-Key ein mit${colors.reset} ${colors.bright}cn -k${colors.reset}`);
     const output = gitCommand('git branch -r', '');
     if (!output) return [];
     
     return output.split('\n')
-        .map(line => line.trim())
         .filter(branch => branch && !branch.includes('HEAD'))
         .map(branch => branch.replace('origin/', ''));
 }
-
 // Git Status prüfen
 function getGitStatus() {
     const status = gitCommand('git status --porcelain', '');
@@ -329,74 +375,107 @@ function getGitStatus() {
 
 // Branch-Analyse mit Closed Detection
 function analyzeBranches(localBranches, remoteBranches, closedBranches) {
-    // Kategorisierung
+    const all = [...new Set([...localBranches, ...remoteBranches])];
+    const active = all.filter(b => 
+        !['main', 'master', 'develop', 'staging'].includes(b) &&
+        !b.startsWith('backup/')
+    );
+    
+    // Branches die nur lokal existieren
     const localOnly = localBranches.filter(b => !remoteBranches.includes(b));
+    // Branches die nur remote existieren
     const remoteOnly = remoteBranches.filter(b => !localBranches.includes(b));
-    const inBoth = localBranches.filter(b => remoteBranches.includes(b));
     
-    // Unterteile localOnly in verschiedene Kategorien
-    const newLocalBranches = [];
-    const mergedBranches = [];
-    const likelyClosedBranches = [];
-    const unknownLocalBranches = [];
+    // Neue lokale Branches (noch nicht gepusht)
+    const newLocal = localOnly.filter(b => !['main', 'master', 'develop'].includes(b));
     
-    localOnly.forEach(branch => {
-        // Skip system branches
-        if (['main', 'master', 'develop'].includes(branch)) return;
-        
-        const closedInfo = closedBranches[branch];
-        
-        if (closedInfo) {
-            if (closedInfo.status === 'merged') {
-                mergedBranches.push(branch);
-            } else if (closedInfo.status === 'likely-closed') {
-                likelyClosedBranches.push(branch);
-            }
-        } else if (isBranchMerged(branch)) {
-            mergedBranches.push(branch);
-        } else {
-            // Prüfe ob es neue Commits gibt
-            const hasCommits = gitCommand(`git rev-list --count main..${branch} 2>/dev/null`, '0');
-            if (parseInt(hasCommits) > 0) {
-                newLocalBranches.push(branch);
-            } else {
-                unknownLocalBranches.push(branch);
-            }
+    // Wahrscheinlich geschlossene Branches (waren mal da, sind jetzt weg)
+    const likelyClosed = localBranches.filter(b => 
+        closedBranches.includes(b) && 
+        !remoteBranches.includes(b)
+    );
+    
+    // Gemergte Branches erkennen
+    const mergedOutput = gitCommand('git branch --merged main', '');
+    const merged = mergedOutput
+        .split('\n')
+        .map(b => b.trim().replace('* ', ''))
+        .filter(b => b && !['main', 'master', getCurrentBranch()].includes(b));
+    
+    return {
+        all,
+        local: localBranches,
+        remote: remoteBranches,
+        active,
+        localOnly,
+        remoteOnly,
+        newLocal,
+        likelyClosed,
+        merged
+    };
+}
+
+// Closed Branches tracken
+function updateClosedBranches(localBranches, remoteBranches) {
+    let closedBranches = loadJSON(CLOSED_BRANCHES_FILE, []);
+    const allCurrentBranches = [...new Set([...localBranches, ...remoteBranches])];
+    
+    // Füge alle Remote-Branches zu closed hinzu, die wir gesehen haben
+    remoteBranches.forEach(branch => {
+        if (!closedBranches.includes(branch)) {
+            closedBranches.push(branch);
         }
     });
     
-    // Aktive Branches
-    const allUniqueBranches = [...new Set([...localBranches, ...remoteBranches])];
-    const activeBranches = allUniqueBranches.filter(b => {
-        if (['main', 'master', 'develop'].includes(b)) return false;
-        if (b.includes('backup')) return false;
-        if (mergedBranches.includes(b)) return false;
-        return true;
-    });
+    // Speichere aktualisierte Liste
+    saveJSON(CLOSED_BRANCHES_FILE, closedBranches);
     
-    return {
-        local: localBranches,
-        remote: remoteBranches,
-        all: allUniqueBranches,
-        localOnly,
-        remoteOnly,
-        inBoth,
-        active: activeBranches,
-        newLocal: newLocalBranches,
-        merged: mergedBranches,
-        likelyClosed: likelyClosedBranches,
-        unknownLocal: unknownLocalBranches
-    };
+    return closedBranches;
 }
-// Status anzeigen mit Closed Branch Detection
+// Issues und PRs von GitHub holen
+async function updateGitHubData() {
+    const githubInfo = getGitHubInfo();
+    if (!githubInfo) {
+        console.log(`${colors.yellow}  ⚠️  Kein GitHub-Repository erkannt${colors.reset}`);
+        return { issues: [], prs: [] };
+    }
+    
+    let issues = [];
+    let prs = [];
+    
+    try {
+        console.log(`${colors.cyan}  → Hole Issues von GitHub...${colors.reset}`);
+        issues = await fetchGitHubIssues(githubInfo.owner, githubInfo.repo);
+        saveJSON(ISSUES_FILE, issues);
+        console.log(`${colors.green}  ✓ ${issues.length} Issues abgerufen${colors.reset}`);
+    } catch (e) {
+        console.log(`${colors.yellow}  ⚠️  Issues konnten nicht abgerufen werden: ${e.message}${colors.reset}`);
+        issues = loadJSON(ISSUES_FILE);
+    }
+    
+    try {
+        console.log(`${colors.cyan}  → Hole Pull Requests von GitHub...${colors.reset}`);
+        prs = await fetchGitHubPRs(githubInfo.owner, githubInfo.repo);
+        saveJSON(PRS_FILE, prs);
+        console.log(`${colors.green}  ✓ ${prs.length} Pull Requests abgerufen${colors.reset}`);
+    } catch (e) {
+        console.log(`${colors.yellow}  ⚠️  PRs konnten nicht abgerufen werden: ${e.message}${colors.reset}`);
+        prs = loadJSON(PRS_FILE);
+    }
+    
+    return { issues, prs };
+}
+
+// Erweiterte Status-Anzeige
 async function showStatus() {
-    const issues = loadJSON(ISSUES_FILE);
-    const prs = loadJSON(PRS_FILE);
     const memory = loadJSON(MEMORY_FILE, {});
     const currentBranch = getCurrentBranch();
     const gitStatus = getGitStatus();
     
     console.log(`${colors.cyan}🔄 Prüfe Status...${colors.reset}`);
+    
+    // GitHub-Daten aktualisieren
+    const { issues, prs } = await updateGitHubData();
     
     // Remote Branches holen
     const localBranches = getLocalBranches();
@@ -406,6 +485,7 @@ async function showStatus() {
     const closedBranches = updateClosedBranches(localBranches, remoteBranches);
     const branches = analyzeBranches(localBranches, remoteBranches, closedBranches);
     
+    // PROJEKTÜBERSICHT
     console.log(`\n${colors.bright}📊 Projektübersicht:${colors.reset}`);
     console.log(`- 🌿 Aktueller Branch: ${colors.green}${currentBranch}${colors.reset}`);
     
@@ -420,85 +500,185 @@ async function showStatus() {
         console.log(`- 📤 ${colors.yellow}${gitStatus.ahead} Commits ahead of Remote!${colors.reset}`);
     }
     
-    // Statistiken
+    // STATISTIKEN
     console.log(`\n${colors.bright}📌 Status:${colors.reset}`);
-    const openIssues = issues.filter(i => i.status !== 'closed').length;
-    const criticalIssuesCount = issues.filter(i => i.priority === 'critical').length;
+    const openIssues = issues.filter(i => i.status === 'open').length;
+    const criticalIssuesCount = issues.filter(i => i.priority === 'critical' && i.status === 'open').length;
+    const highIssuesCount = issues.filter(i => i.priority === 'high' && i.status === 'open').length;
     const openPRsCount = prs.filter(pr => pr.status === 'open').length;
     
-    console.log(`- ${openIssues} offene Issues (davon ${colors.red}${criticalIssuesCount} kritisch${colors.reset})`);
+    console.log(`- ${openIssues} offene Issues (${colors.red}${criticalIssuesCount} kritisch${colors.reset}, ${colors.yellow}${highIssuesCount} hoch${colors.reset})`);
     console.log(`- ${colors.cyan}${branches.active.length}${colors.reset} aktive Branches (${branches.all.length} total)`);
     console.log(`  └─ ${branches.local.length} lokal, ${colors.green}${branches.remote.length} auf GitHub${colors.reset}`);
     console.log(`- ${openPRsCount} offene Pull Requests`);
     
-    // Branch-Synchronisation mit Details
-    if (branches.localOnly.length > 0 || branches.remoteOnly.length > 0) {
+    // DETAILLIERTE ISSUE-LISTE
+    if (issues.length > 0) {
+        console.log(`\n${colors.bright}📋 Issues im Detail:${colors.reset}`);
+        
+        // Kritische Issues
+        const criticalIssues = issues.filter(i => i.priority === 'critical' && i.status === 'open');
+        if (criticalIssues.length > 0) {
+            console.log(`\n${colors.red}🚨 Kritische Issues:${colors.reset}`);
+            criticalIssues.forEach(issue => {
+                const age = Math.floor((new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
+                console.log(`  ${colors.red}●${colors.reset} ${issue.id} - ${issue.title}`);
+                console.log(`    ${colors.dim}Erstellt vor ${age} Tagen${issue.assignee ? ` • Zugewiesen an: ${issue.assignee}` : ' • Nicht zugewiesen'}${colors.reset}`);
+            });
+        }
+        
+        // High Priority Issues
+        const highIssues = issues.filter(i => i.priority === 'high' && i.status === 'open');
+        if (highIssues.length > 0) {
+            console.log(`\n${colors.yellow}⚠️  High Priority Issues:${colors.reset}`);
+            highIssues.forEach(issue => {
+                const age = Math.floor((new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
+                console.log(`  ${colors.yellow}●${colors.reset} ${issue.id} - ${issue.title}`);
+                console.log(`    ${colors.dim}Erstellt vor ${age} Tagen${issue.assignee ? ` • Zugewiesen an: ${issue.assignee}` : ''}${colors.reset}`);
+            });
+        }
+        
+        // Normale Issues (nur erste 5)
+        const normalIssues = issues.filter(i => 
+            i.status === 'open' && 
+            !['critical', 'high'].includes(i.priority)
+        ).slice(0, 5);
+        
+        if (normalIssues.length > 0) {
+            console.log(`\n${colors.cyan}📝 Weitere offene Issues:${colors.reset}`);
+            normalIssues.forEach(issue => {
+                console.log(`  ${colors.cyan}●${colors.reset} ${issue.id} - ${issue.title}`);
+            });
+            
+            const moreCount = issues.filter(i => 
+                i.status === 'open' && 
+                !['critical', 'high'].includes(i.priority)
+            ).length - 5;
+            
+            if (moreCount > 0) {
+                console.log(`  ${colors.dim}... und ${moreCount} weitere${colors.reset}`);
+            }
+        }
+    }
+    
+    // DETAILLIERTE BRANCH-AUFLISTUNG
+    console.log(`\n${colors.bright}🌳 Branches im Detail:${colors.reset}`);
+    
+    // Aktuelle Branch-Info
+    if (currentBranch !== 'main' && currentBranch !== 'master') {
+        console.log(`\n${colors.green}Aktueller Branch:${colors.reset}`);
+        console.log(`  ➜ ${colors.green}${currentBranch}${colors.reset}`);
+        if (memory[currentBranch]?.issue) {
+            console.log(`    ${colors.dim}Verknüpft mit Issue ${memory[currentBranch].issue}${colors.reset}`);
+        }
+    }
+    
+    // Feature/Bugfix Branches
+    const featureBranches = branches.active.filter(b => 
+        b.startsWith('feature/') || b.startsWith('bugfix/')
+    );
+    
+    if (featureBranches.length > 0) {
+        console.log(`\n${colors.cyan}Feature/Bugfix Branches:${colors.reset}`);
+        featureBranches.forEach(branch => {
+            const inLocal = branches.local.includes(branch);
+            const inRemote = branches.remote.includes(branch);
+            let status = '';
+            
+            if (inLocal && inRemote) {
+                status = `${colors.green}✓${colors.reset}`;
+            } else if (inLocal && !inRemote) {
+                status = `${colors.yellow}⬆${colors.reset}`;  // Needs push
+            } else if (!inLocal && inRemote) {
+                status = `${colors.blue}⬇${colors.reset}`;   // Needs pull
+            }
+            
+            console.log(`  ${status} ${branch}`);
+            
+            if (memory[branch]?.issue) {
+                const issue = issues.find(i => i.id === memory[branch].issue);
+                if (issue) {
+                    console.log(`    ${colors.dim}→ Issue ${issue.id}: ${issue.title}${colors.reset}`);
+                }
+            }
+        });
+    }
+    
+    // Andere aktive Branches
+    const otherBranches = branches.active.filter(b => 
+        !b.startsWith('feature/') && 
+        !b.startsWith('bugfix/') &&
+        b !== currentBranch
+    );
+    
+    if (otherBranches.length > 0) {
+        console.log(`\n${colors.dim}Andere Branches:${colors.reset}`);
+        otherBranches.slice(0, 5).forEach(branch => {
+            const inLocal = branches.local.includes(branch);
+            const inRemote = branches.remote.includes(branch);
+            
+            if (inLocal && inRemote) {
+                console.log(`  ${colors.dim}${branch}${colors.reset}`);
+            } else if (inLocal && !inRemote) {
+                console.log(`  ${colors.yellow}${branch} (nur lokal)${colors.reset}`);
+            } else if (!inLocal && inRemote) {
+                console.log(`  ${colors.blue}${branch} (nur GitHub)${colors.reset}`);
+            }
+        });
+        
+        if (otherBranches.length > 5) {
+            console.log(`  ${colors.dim}... und ${otherBranches.length - 5} weitere${colors.reset}`);
+        }
+    }
+    
+    // Branch-Synchronisation
+    if (branches.newLocal.length > 0 || branches.remoteOnly.length > 0) {
         console.log(`\n${colors.bright}🔄 Branch-Synchronisation:${colors.reset}`);
         
-        // Neue lokale Branches (noch nicht gepusht)
         if (branches.newLocal.length > 0) {
             console.log(`\n${colors.yellow}📤 Neue lokale Branches (nicht gepusht):${colors.reset}`);
-            branches.newLocal.slice(0, 5).forEach(b => {
-                const memData = memory[b];
-                let info = `  → ${colors.yellow}${b}${colors.reset}`;
-                if (memData?.issue) info += ` (Issue ${memData.issue})`;
-                console.log(info);
-            });
-            if (branches.newLocal.length > 5) {
-                console.log(`  ${colors.dim}... und ${branches.newLocal.length - 5} weitere${colors.reset}`);
-            }
-        }
-        
-        // Gemergte Branches (können gelöscht werden)
-        if (branches.merged.length > 0) {
-            console.log(`\n${colors.green}✅ Gemergte Branches (können gelöscht werden):${colors.reset}`);
-            branches.merged.slice(0, 5).forEach(b => {
-                console.log(`  → ${colors.strikethrough}${colors.dim}${b}${colors.reset} ${colors.green}(merged)${colors.reset}`);
-            });
-            if (branches.merged.length > 5) {
-                console.log(`  ${colors.dim}... und ${branches.merged.length - 5} weitere${colors.reset}`);
-            }
-        }
-        
-        // Wahrscheinlich geschlossene Branches
-        if (branches.likelyClosed.length > 0) {
-            console.log(`\n${colors.dim}🔒 Wahrscheinlich geschlossene Branches:${colors.reset}`);
-            branches.likelyClosed.slice(0, 3).forEach(b => {
-                console.log(`  → ${colors.dim}${b} (remote gelöscht)${colors.reset}`);
+            branches.newLocal.forEach(b => {
+                console.log(`  → ${colors.yellow}${b}${colors.reset}`);
             });
         }
         
-        // Remote-only Branches
         if (branches.remoteOnly.length > 0) {
             console.log(`\n${colors.blue}📥 Nur auf GitHub (nicht lokal):${colors.reset}`);
-            branches.remoteOnly.slice(0, 5).forEach(b => 
-                console.log(`  → ${colors.blue}${b}${colors.reset}`)
-            );
+            branches.remoteOnly.slice(0, 5).forEach(b => {
+                console.log(`  → ${colors.blue}${b}${colors.reset}`);
+            });
             if (branches.remoteOnly.length > 5) {
                 console.log(`  ${colors.dim}... und ${branches.remoteOnly.length - 5} weitere${colors.reset}`);
             }
         }
     }
     
-    // Kritische Issues
-    if (criticalIssuesCount > 0) {
-        console.log(`\n${colors.red}🚨 Kritische offene Issues:${colors.reset}`);
-        issues.filter(i => i.priority === 'critical' && i.status !== 'closed')
-              .slice(0, 5)
-              .forEach(issue => {
-                  const labels = issue.labels?.join(', ') || '';
-                  console.log(`- ${issue.id} - ${issue.title}${labels ? ` [${labels}]` : ''}`);
-              });
+    // PULL REQUESTS
+    if (prs.length > 0) {
+        const openPRs = prs.filter(pr => pr.status === 'open');
+        if (openPRs.length > 0) {
+            console.log(`\n${colors.bright}🔀 Offene Pull Requests:${colors.reset}`);
+            openPRs.forEach(pr => {
+                const age = Math.floor((new Date() - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
+                console.log(`  ${colors.magenta}●${colors.reset} PR ${pr.id}: ${pr.title}`);
+                console.log(`    ${colors.dim}${pr.branch} → ${pr.base} • Von ${pr.author} • Vor ${age} Tagen${colors.reset}`);
+                if (pr.draft) {
+                    console.log(`    ${colors.yellow}[DRAFT]${colors.reset}`);
+                }
+            });
+        }
     }
     
-    // Branch-Beziehungen
+    // Branch-Issue Verknüpfungen (für Übersicht)
     console.log(`\n${colors.bright}🔗 Branch-Issue Verknüpfungen:${colors.reset}`);
     
     // Aktuelle Branch-Beziehung (wird auch später in Empfehlungen verwendet)
     const currentBranchData = memory[currentBranch];
     if (currentBranchData?.issue) {
         const issue = issues.find(i => i.id === currentBranchData.issue);
-        console.log(`- ${colors.green}${currentBranch} (AKTUELL)${colors.reset} → Issue ${currentBranchData.issue}`);
+        if (issue) {
+            console.log(`- ${colors.green}${currentBranch} (AKTUELL)${colors.reset} → Issue ${currentBranchData.issue}: "${issue.title}"`);
+        }
     }
     
     // Andere aktive Branches mit Issues
@@ -506,22 +686,25 @@ async function showStatus() {
         .filter(b => memory[b]?.issue && b !== currentBranch)
         .slice(0, 4);
     
-    activeBranchesWithIssues.forEach(branch => {
-        const data = memory[branch];
-        const inLocal = branches.local.includes(branch);
-        const inRemote = branches.remote.includes(branch);
-        
-        let status = `- ${branch}`;
-        if (!inRemote) status = `- ${colors.yellow}${branch} (lokal)${colors.reset}`;
-        else if (!inLocal) status = `- ${colors.blue}${branch} (GitHub)${colors.reset}`;
-        
-        if (data.issue) {
-            status += ` → Issue ${data.issue}`;
-        }
-        console.log(status);
-    });
+    if (activeBranchesWithIssues.length > 0) {
+        activeBranchesWithIssues.forEach(branch => {
+            const data = memory[branch];
+            const issue = issues.find(i => i.id === data.issue);
+            const inLocal = branches.local.includes(branch);
+            const inRemote = branches.remote.includes(branch);
+            
+            let status = `- ${branch}`;
+            if (!inRemote) status = `- ${colors.yellow}${branch} (lokal)${colors.reset}`;
+            else if (!inLocal) status = `- ${colors.blue}${branch} (GitHub)${colors.reset}`;
+            
+            if (issue) {
+                status += ` → Issue ${data.issue}: "${issue.title}"`;
+            }
+            console.log(status);
+        });
+    }
     
-    // Empfehlungen
+    // ERWEITERTE EMPFEHLUNGEN
     console.log(`\n${colors.bright}✅ Empfehlungen:${colors.reset}`);
     
     let recommendationCount = 1;
@@ -554,28 +737,28 @@ async function showStatus() {
     }
     
     // PRIORITÄT 3: Kritische Issues
-    const criticalIssues = issues.filter(i => 
+    const criticalOpenIssues = issues.filter(i => 
         i.priority === 'critical' && 
         i.status === 'open' &&
-        !Object.values(memory).some(m => m.issue === i.id)
+        !i.assignee  // Nicht zugewiesen
     );
     
-    if (criticalIssues.length > 0) {
-        const issue = criticalIssues[0];
-        console.log(`${colors.red}${recommendationCount}. KRITISCH: Arbeite an Issue #${issue.id}${colors.reset}`);
+    if (criticalOpenIssues.length > 0) {
+        const issue = criticalOpenIssues[0];
+        console.log(`${colors.red}${recommendationCount}. KRITISCH: Arbeite an Issue ${issue.id}${colors.reset}`);
         console.log(`   "${issue.title}"`);
-        console.log(`   ${colors.cyan}→ git checkout -b feature/issue-${issue.id}${colors.reset}`);
+        console.log(`   ${colors.cyan}→ git checkout -b bugfix/issue-${issue.id.replace('#', '')}${colors.reset}`);
         recommendationCount++;
     }
     
     // PRIORITÄT 4: Aktuelles Issue/Branch weiterbearbeiten
     if (currentBranchData?.issue) {
         const issue = issues.find(i => i.id === currentBranchData.issue);
-        if (issue) {
-            console.log(`${colors.green}${recommendationCount}. Weiterarbeiten an aktuellem Issue #${currentBranchData.issue}:${colors.reset}`);
+        if (issue && issue.status === 'open') {
+            console.log(`${colors.green}${recommendationCount}. Weiterarbeiten an aktuellem Issue ${currentBranchData.issue}:${colors.reset}`);
             console.log(`   "${issue.title}"`);
-            if (issue.status === 'in_progress') {
-                console.log(`   ${colors.dim}Status: In Bearbeitung${colors.reset}`);
+            if (issue.priority === 'high') {
+                console.log(`   ${colors.yellow}[HIGH PRIORITY]${colors.reset}`);
             }
             recommendationCount++;
         }
@@ -583,20 +766,21 @@ async function showStatus() {
         // Branch ohne Issue-Verknüpfung
         console.log(`${colors.yellow}${recommendationCount}. Branch "${currentBranch}" hat keine Issue-Verknüpfung${colors.reset}`);
         console.log(`   ${colors.cyan}→ Erstelle ein Issue oder verknüpfe mit bestehendem${colors.reset}`);
+        console.log(`   ${colors.dim}Tipp: Bearbeite project-memory.json für Verknüpfung${colors.reset}`);
         recommendationCount++;
     }
     
     // PRIORITÄT 5: Offene Pull Requests
-    const openPRs = prs.filter(pr => pr.status === 'open');
+    const openPRs = prs.filter(pr => pr.status === 'open' && !pr.draft);
     if (openPRs.length > 0) {
-        const pr = openPRs[0];
-        console.log(`${colors.blue}${recommendationCount}. Pull Request #${pr.id} wartet auf Review:${colors.reset}`);
-        console.log(`   "${pr.title}"`);
-        if (pr.needsWork) {
-            console.log(`   ${colors.yellow}→ Änderungen angefordert - bearbeiten!${colors.reset}`);
-        } else {
-            console.log(`   ${colors.cyan}→ Review anfordern oder mergen${colors.reset}`);
-        }
+        const oldestPR = openPRs.sort((a, b) => 
+            new Date(a.created_at) - new Date(b.created_at)
+        )[0];
+        const age = Math.floor((new Date() - new Date(oldestPR.created_at)) / (1000 * 60 * 60 * 24));
+        
+        console.log(`${colors.blue}${recommendationCount}. Pull Request ${oldestPR.id} wartet seit ${age} Tagen:${colors.reset}`);
+        console.log(`   "${oldestPR.title}"`);
+        console.log(`   ${colors.cyan}→ Review durchführen oder mergen${colors.reset}`);
         recommendationCount++;
     }
     
@@ -604,14 +788,14 @@ async function showStatus() {
     const highPriorityIssues = issues.filter(i => 
         i.priority === 'high' && 
         i.status === 'open' &&
-        !Object.values(memory).some(m => m.issue === i.id)
+        !i.assignee
     );
     
     if (highPriorityIssues.length > 0 && recommendationCount <= 5) {
         const issue = highPriorityIssues[0];
-        console.log(`${colors.yellow}${recommendationCount}. Als nächstes: Issue #${issue.id} (High Priority)${colors.reset}`);
+        console.log(`${colors.yellow}${recommendationCount}. Als nächstes: Issue ${issue.id} (High Priority)${colors.reset}`);
         console.log(`   "${issue.title}"`);
-        console.log(`   ${colors.cyan}→ git checkout -b feature/issue-${issue.id}${colors.reset}`);
+        console.log(`   ${colors.cyan}→ git checkout -b feature/issue-${issue.id.replace('#', '')}${colors.reset}`);
         recommendationCount++;
     }
     
@@ -622,16 +806,27 @@ async function showStatus() {
         recommendationCount++;
     }
     
+    // PRIORITÄT 8: Remote Branches auschecken
+    if (branches.remoteOnly.length > 0 && recommendationCount <= 6) {
+        const interestingRemote = branches.remoteOnly.find(b => 
+            b.startsWith('feature/') || b.startsWith('bugfix/')
+        );
+        if (interestingRemote) {
+            console.log(`${colors.blue}${recommendationCount}. Remote Branch auschecken:${colors.reset}`);
+            console.log(`   ${colors.cyan}→ git checkout -b ${interestingRemote} origin/${interestingRemote}${colors.reset}`);
+            recommendationCount++;
+        }
+    }
+    
     // Kontext-Zusammenfassung
     if (recommendationCount === 1) {
         console.log(`${colors.green}1. Alles im grünen Bereich! 🎉${colors.reset}`);
         console.log(`   Wähle das nächste Issue aus dem Backlog`);
-        console.log(`   ${colors.cyan}→ gh issue list --state open${colors.reset}`);
+        console.log(`   ${colors.cyan}→ gh issue list --state open --label "ready"${colors.reset}`);
     }
     
     console.log('');
 }
-
 // Branch Cleanup Command
 async function cleanupBranches(dryRun = true) {
     console.log(`${colors.bright}🧹 Branch Cleanup${colors.reset}\n`);
@@ -678,38 +873,69 @@ async function cleanupBranches(dryRun = true) {
     
     if (dryRun && (branches.merged.length > 0 || branches.likelyClosed.length > 0)) {
         console.log(`\n${colors.cyan}Zum tatsächlichen Löschen:${colors.reset}`);
-        console.log(`  → npm run context:cleanup:force`);
-        console.log(`  → oder: node context-tracker.js cleanup --force`);
+        console.log(`  npm run context:cleanup:force`);
     }
 }
 
+// Sync Command
+async function syncRepository() {
+    console.log(`${colors.cyan}🔄 Synchronisiere Repository...${colors.reset}\n`);
+    
+    // Fetch latest
+    console.log('📥 Fetching latest changes...');
+    gitCommand('git fetch --all --prune');
+    
+    const gitStatus = getGitStatus();
+    
+    if (gitStatus.needsPull) {
+        console.log(`📥 Pulling ${gitStatus.behind} commits...`);
+        const result = gitCommand('git pull');
+        console.log(result || '✅ Pull erfolgreich');
+    }
+    
+    if (gitStatus.needsPush) {
+        console.log(`📤 Pushing ${gitStatus.ahead} commits...`);
+        const result = gitCommand('git push');
+        console.log(result || '✅ Push erfolgreich');
+    }
+    
+    // Update GitHub data
+    await updateGitHubData();
+    
+    console.log(`\n${colors.green}✅ Synchronisation abgeschlossen!${colors.reset}`);
+}
+
+// Update Command
+async function updateStatus() {
+    await syncRepository();
+    await showStatus();
+}
+
 // CLI Entry Point
-const command = process.argv[2];
-const args = process.argv.slice(3);
+const command = process.argv[2] || 'status';
 
-if (command === 'status' || !command) {
-    showStatus().catch(error => {
-        console.error(`${colors.red}Fehler: ${error.message}${colors.reset}`);
-        process.exit(1);
-    });
-} else if (command === 'cleanup') {
-    const force = args.includes('--force') || args.includes('-f');
-    cleanupBranches(!force).catch(error => {
-        console.error(`${colors.red}Fehler: ${error.message}${colors.reset}`);
-        process.exit(1);
-    });
-} else {
-    console.log(`
-${colors.bright}Context-Tracker v2${colors.reset}
-
-${colors.cyan}Verwendung:${colors.reset}
-  node context-tracker-v2.js [command]
-
-${colors.cyan}Commands:${colors.reset}
-  ${colors.green}status${colors.reset}              Status anzeigen (default)
-  ${colors.green}cleanup${colors.reset}             Branch-Cleanup (Dry-Run)
-  ${colors.green}cleanup --force${colors.reset}     Branches wirklich löschen
-
-${colors.dim}Erkennt automatisch gemergte und geschlossene Branches!${colors.reset}
-`);
+switch (command) {
+    case 'status':
+        showStatus();
+        break;
+    
+    case 'sync':
+        syncRepository();
+        break;
+    
+    case 'update':
+        updateStatus();
+        break;
+    
+    case 'cleanup':
+        cleanupBranches(true);
+        break;
+    
+    case 'cleanup:force':
+        cleanupBranches(false);
+        break;
+    
+    default:
+        console.log(`Unbekannter Befehl: ${command}`);
+        console.log('Verfügbare Befehle: status, sync, update, cleanup, cleanup:force');
 }
