@@ -15,10 +15,10 @@ Ein intelligentes Tool zur zentralen Verwaltung von Projekt-Kontexten, Issues, B
 ### Schnellinstallation (Empfohlen) 
 ```bash
 # Ein-Befehl-Installation
-curl -sSL https://raw.githubusercontent.com/yourusername/context-now/main/quick-setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/quick-setup.sh | bash
 
 # Oder mit git clone + Installer
-git clone https://github.com/yourusername/context-now.git ~/Code/context-now
+git clone https://github.com/GaboCapo/context-now.git ~/Code/context-now
 cd ~/Code/context-now && ./install.sh
 ```
 

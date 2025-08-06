@@ -27,7 +27,7 @@ fi
 
 # Clone und installiere
 echo "📦 Installiere Context-Now..."
-git clone https://github.com/yourusername/context-now.git ~/Code/context-now 2>/dev/null || {
+git clone https://github.com/GaboCapo/context-now.git ~/Code/context-now 2>/dev/null || {
     echo "Repository existiert bereits, update..."
     cd ~/Code/context-now && git pull
 }

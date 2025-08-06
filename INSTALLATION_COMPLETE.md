@@ -14,7 +14,7 @@
 
 ```bash
 # Repository klonen
-git clone https://github.com/yourusername/context-now.git ~/Code/context-now
+git clone https://github.com/GaboCapo/context-now.git ~/Code/context-now
 cd ~/Code/context-now
 
 # Installer ausführen
@@ -36,7 +36,7 @@ Der Installer erledigt automatisch:
 
 ```bash
 # Repository klonen
-git clone https://github.com/yourusername/context-now.git
+git clone https://github.com/GaboCapo/context-now.git
 cd context-now
 
 # Global installieren
@@ -54,11 +54,11 @@ npm install -g .
 
 ```bash
 # Repository klonen
-git clone https://github.com/yourusername/context-now.git ~/Code/context-now
+git clone https://github.com/GaboCapo/context-now.git ~/Code/context-now
 cd ~/Code/context-now
 
 # Oder via SSH (wenn Deploy Keys eingerichtet)
-git clone git@github.com:yourusername/context-now.git ~/Code/context-now
+git clone git@github.com:GaboCapo/context-now.git ~/Code/context-now
 ```
 
 ### 2. Dependencies installieren
@@ -340,8 +340,8 @@ cn init-templates
 
 ## 🆘 Support
 
-- **Issues**: https://github.com/yourusername/context-now/issues
-- **Wiki**: https://github.com/yourusername/context-now/wiki
+- **Issues**: https://github.com/GaboCapo/context-now/issues
+- **Wiki**: https://github.com/GaboCapo/context-now/wiki
 - **Email**: support@context-now.dev
 
 ---
