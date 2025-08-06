@@ -16,6 +16,7 @@ Thumbs.db
 
 # WICHTIG: Private Projektdaten (NIEMALS committen!)
 projects.json
+tools/context-tracker/closed-branches.json
 
 # Project-specific JSON data (diese Dateien sind projektspezifisch)
 tools/context-tracker/issues.json
