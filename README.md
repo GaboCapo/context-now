@@ -265,6 +265,14 @@ Bei Problemen bitte ein [Issue](https://github.com/GaboCapo/context-now/issues) 
 - Fehlermeldung
 - Steps to reproduce
 
+## 📚 Weitere Dokumentation
+
+- [**INSTALLATION_COMPLETE.md**](INSTALLATION_COMPLETE.md) - Ausführliche Installationsanleitung
+- [**INSTALLATION.md**](INSTALLATION.md) - Projekt-Setup Guide  
+- [**GITHUB_TOKEN.md**](GITHUB_TOKEN.md) - GitHub Token einrichten
+- [**SSH_DEPLOY_KEYS.md**](SSH_DEPLOY_KEYS.md) - SSH Deploy Keys Setup
+- [**tools/context-tracker/DATA_SOURCES.md**](tools/context-tracker/DATA_SOURCES.md) - Datenquellen-Dokumentation
+
 ---
 
 **Version**: 2.0.0  
