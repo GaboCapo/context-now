@@ -137,9 +137,9 @@ rm -f ~/.config/fish/functions/cn-*.fish
    - `issue-relations.json` - Issue relationships
 
 3. **NPM scripts are added**:
-   - `npm run context` - Show status
-   - `npm run context:sync` - Sync repository
-   - `npm run context:update` - Sync + Status
+   - `npm run context-now` - Show status
+   - `npm run context-now:sync` - Sync repository
+   - `npm run context-now:update` - Sync + Status
 
 ## 📂 Structure
 
@@ -177,13 +177,13 @@ cn -c ~/Code/my-project
 cd ~/Code/my-project
 
 # 3. Check status
-npm run context
+npm run context-now
 
 # 4. Fill JSON files with real data
 vim tools/context-tracker/issues.json
 
 # 5. Check status again
-npm run context
+npm run context-now
 ```
 
 ## 🔄 Updates
@@ -222,7 +222,7 @@ The tool supports developer handovers:
 
 ```bash
 # In your project:
-npm run context:handover
+npm run context-now:handover
 
 # Shows:
 # - Uncommitted Changes

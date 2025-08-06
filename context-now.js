@@ -121,7 +121,7 @@ function connectProject(projectPath) {
     console.log(`${colors.cyan}Pfad: ${absolutePath}${colors.reset}`);
     console.log(`\n${colors.yellow}Verwendung:${colors.reset}`);
     console.log(`  cd ${absolutePath}`);
-    console.log(`  npm run context`);
+    console.log(`  npm run context-now`);
 }
 
 // Template-Inhalt laden
@@ -149,25 +149,14 @@ function updatePackageJson(projectPath) {
             packageJson.scripts = {};
         }
         
-        // Context-Tracker Scripts hinzufügen
-        const scriptsToAdd = {
-            'context': 'node tools/context-tracker/context-tracker.js status',
-            'context:sync': 'node tools/context-tracker/context-tracker.js sync',
-            'context:update': 'node tools/context-tracker/context-tracker.js update'
-        };
+        // Use context-now instead of context to avoid conflicts
+        packageJson.scripts['context-now'] = 'node tools/context-tracker/context-tracker.js status';
+        packageJson.scripts['context-now:sync'] = 'node tools/context-tracker/context-tracker.js sync';
+        packageJson.scripts['context-now:update'] = 'node tools/context-tracker/context-tracker.js update';
+        packageJson.scripts['context-now:handover'] = 'node tools/context-tracker/context-tracker.js handover';
         
-        let added = false;
-        Object.entries(scriptsToAdd).forEach(([key, value]) => {
-            if (!packageJson.scripts[key]) {
-                packageJson.scripts[key] = value;
-                added = true;
-            }
-        });
-        
-        if (added) {
-            fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
-            console.log(`${colors.green}✅ NPM Scripts zu package.json hinzugefügt${colors.reset}`);
-        } else {
+        fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+        console.log(`${colors.green}✅ NPM Scripts zu package.json hinzugefügt${colors.reset}`); else {
             console.log(`${colors.dim}  → NPM Scripts bereits vorhanden${colors.reset}`);
         }
     } catch (e) {
@@ -316,9 +305,10 @@ function showProjectStatus(projectName) {
 // Hilfe anzeigen
 function showHelp() {
     console.log(`
-${colors.bright}🎯 Context-Now - Multi-Projekt Manager${colors.reset}
+${colors.bright}🎯 Context-Now - Git Project Context Tracker${colors.reset}
 
 ${colors.cyan}Verwendung:${colors.reset}
+  cn [OPTION] [ARGUMENT]
   context-now [OPTION] [ARGUMENT]
 
 ${colors.cyan}Optionen:${colors.reset}
@@ -330,16 +320,21 @@ ${colors.cyan}Optionen:${colors.reset}
   ${colors.green}-h, --help${colors.reset}               Diese Hilfe anzeigen
 
 ${colors.cyan}Beispiele:${colors.reset}
-  context-now -c /home/user/mein-projekt    # Projekt verbinden
-  context-now -l                             # Projekte auflisten
-  context-now -g 1                           # Zu Projekt 1 wechseln
-  context-now -g mein-projekt                # Zu Projekt wechseln
-  context-now -s                             # Status aktuelles Projekt
-  context-now -s mein-projekt                # Status spezifisches Projekt
-  context-now -d mein-projekt                # Projekt trennen
+  cn -c /home/user/mein-projekt             # Projekt verbinden
+  cn -l                                      # Projekte auflisten
+  cn -g 1                                    # Zu Projekt 1 wechseln
+  cn -g mein-projekt                         # Zu Projekt wechseln
+  cn -s                                      # Status aktuelles Projekt
+  cn -s mein-projekt                         # Status spezifisches Projekt
+  cn -d mein-projekt                         # Projekt trennen
 
-${colors.dim}Context-Now verwaltet zentral alle deine Projekt-Kontexte.${colors.reset}
-${colors.dim}Templates und Scripts werden via Symlinks geteilt.${colors.reset}
+${colors.cyan}NPM Scripts (in verbundenen Projekten):${colors.reset}
+  npm run context-now                       # Status anzeigen
+  npm run context-now:sync                  # Repository synchronisieren  
+  npm run context-now:update                # Sync + Status
+
+${colors.dim}Context-Now verwaltet zentral alle deine Git-Projekt-Kontexte.${colors.reset}
+${colors.dim}Dokumentation: https://github.com/GaboCapo/context-now${colors.reset}
 `);
 }
 
