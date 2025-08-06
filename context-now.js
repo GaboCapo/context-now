@@ -430,21 +430,26 @@ function setupSSHKey() {
         return;
     }
     
-    // Konfiguriere Git für SSH
-    console.log(`\n${colors.cyan}Konfiguriere Git für SSH...${colors.reset}`);
-    try {
-        // Setze Git URL-Rewrite für automatische SSH-Nutzung
-        execSync('git config --global url."git@github.com:".insteadOf "https://github.com/"');
-        console.log(`  ${colors.green}✓ Git für SSH konfiguriert${colors.reset}`);
-        
-        console.log(`\n${colors.green}✅ SSH-Setup erfolgreich abgeschlossen!${colors.reset}`);
-        console.log(`\n${colors.cyan}Nächste Schritte:${colors.reset}`);
-        console.log(`  1. Verbinde dein Projekt: ${colors.bright}cn -c /pfad/zum/projekt${colors.reset}`);
-        console.log(`  2. Prüfe den Status: ${colors.bright}cn -s${colors.reset}`);
-        console.log(`\n${colors.dim}Alle zukünftigen Git-Operationen nutzen jetzt automatisch SSH.${colors.reset}`);
-    } catch (e) {
-        console.error(`${colors.red}Fehler bei Git-Konfiguration:${colors.reset}`, e.message);
+    // Information über Git-Konfiguration
+    console.log(`\n${colors.green}✅ SSH-Setup erfolgreich!${colors.reset}`);
+    
+    // Zeige Empfehlungen für SSH-Config
+    if (hasSSHConfig && configuredHosts.length > 0) {
+        console.log(`\n${colors.cyan}Git Remote URLs für deine Projekte:${colors.reset}`);
+        console.log(`  Verwende die konfigurierten Hosts in deinen Remote-URLs:`);
+        configuredHosts.forEach(host => {
+            const projectName = host.replace('github-', '');
+            console.log(`  ${colors.dim}Für ${projectName}:${colors.reset} git@${host}:owner/repo.git`);
+        });
     }
+    
+    console.log(`\n${colors.cyan}Optional: Git global für SSH konfigurieren:${colors.reset}`);
+    console.log(`  Für automatische HTTPS→SSH Umleitung:`);
+    console.log(`  ${colors.bright}git config --global url."git@github.com:".insteadOf "https://github.com/"${colors.reset}`);
+    
+    console.log(`\n${colors.cyan}Nächste Schritte:${colors.reset}`);
+    console.log(`  1. Verbinde dein Projekt: ${colors.bright}cn -c /pfad/zum/projekt${colors.reset}`);
+    console.log(`  2. Prüfe den Status: ${colors.bright}cn -s${colors.reset}`);
 }
 
 // Hilfe anzeigen
