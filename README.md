@@ -1,4 +1,4 @@
-*[Deutsch](README.de.md) | English*
+*[Deutsch](docs/de/README.md) | English*
 
 > For detailed documentation, please visit our [**docs folder**](./docs/en/index.md).
 
@@ -57,7 +57,7 @@ cd ~/Code/context-now && ./install.sh
 - ✅ Environment variables
 - ✅ Helper functions (cn-update, cn-backup, cn-edit)
 
-See [INSTALLATION_COMPLETE.md](INSTALLATION_COMPLETE.md) for all options.
+See [installation-complete.md](docs/en/installation-complete.md) for all options.
 
 ## 📋 Usage
 
@@ -280,7 +280,7 @@ For problems, please create an [Issue](https://github.com/GaboCapo/context-now/i
 For a comprehensive guide, please see the [**Full Documentation**](./docs/en/index.md).
 
 Key documents include:
-- [**INSTALLATION_COMPLETE.md**](INSTALLATION_COMPLETE.md) - Overview of all installed components.
+- [**Installation Complete Guide**](docs/en/installation-complete.md) - Overview of all installed components.
 - [**Data Sources Documentation**](tools/context-tracker/DATA_SOURCES.md) - A deep dive into the tool's data.
 
 ---

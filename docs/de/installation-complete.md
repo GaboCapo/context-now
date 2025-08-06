@@ -279,7 +279,7 @@ done
 
 - **README.md** - Hauptdokumentation
 - **INSTALLATION.md** - Original-Installationsanleitung  
-- **INSTALLATION_COMPLETE.md** - Diese Anleitung
+- **installation-complete.md** - This guide
 - **tools/context-tracker/DATA_SOURCES.md** - Datenquellen-Dokumentation
 - **GITHUB_TOKEN.md** - GitHub Token Setup
 - **SSH_DEPLOY_KEYS.md** - SSH Deploy Keys Setup

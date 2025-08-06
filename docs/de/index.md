@@ -12,6 +12,10 @@ Diese Dokumentation gibt dir einen umfassenden Überblick über alle Funktionen,
 
 - **[Installation](installation.md)**
   - Hier findest du alle Informationen, um `context-now` auf deinem System einzurichten.
+- **[Installation Abgeschlossen](installation-complete.md)**
+  - Übersicht über alle installierten Komponenten und Verifizierungsschritte.
+- **[Integrations-Leitfaden](integration.md)**
+  - Wie du Context-Now in deine bestehenden Projekte integrierst.
 - **[Benutzeranleitung](usage.md)**
   - Lerne die grundlegenden und fortgeschrittenen Befehle kennen, um das Tool optimal zu nutzen.
 - **[Konfiguration](configuration.md)**
