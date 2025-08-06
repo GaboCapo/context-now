@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const https = require('https');
+const readline = require('readline');
+
+// Branch-Issue Analyzer importieren
+const analyzer = require('./branch-issue-analyzer.js');
 
 // Versuche SSH-Modul zu laden (falls vorhanden)
 let sshModule = null;
@@ -736,43 +740,77 @@ async function showStatus() {
         }
     }
     
-    // Branch-Issue Verknüpfungen (für Übersicht)
+    // ERWEITERTE BRANCH-ISSUE ANALYSE
     console.log(`\n${colors.bright}🔗 Branch-Issue Verknüpfungen:${colors.reset}`);
     
-    // Aktuelle Branch-Beziehung (wird auch später in Empfehlungen verwendet)
-    const currentBranchData = memory[currentBranch];
-    if (currentBranchData?.issue) {
-        const issue = issues.find(i => i.id === currentBranchData.issue);
-        if (issue) {
-            console.log(`- ${colors.green}${currentBranch} (AKTUELL)${colors.reset} → Issue ${currentBranchData.issue}: "${issue.title}"`);
+    // Analysiere alle Branch-Issue Beziehungen
+    const relations = analyzer.analyzeBranchIssueRelations(branches.active, issues, memory);
+    const unassignedIssues = analyzer.findUnassignedIssues(issues, relations);
+    
+    // Zeige Duplikate-Warnung prominent
+    if (Object.keys(relations.duplicates).length > 0) {
+        console.log(`\n${colors.red}⚠️  WARNUNG: Mehrere Branches für dieselben Issues:${colors.reset}`);
+        Object.entries(relations.duplicates).forEach(([issueId, branchList]) => {
+            const issue = issues.find(i => i.id === issueId);
+            console.log(`  ${colors.yellow}Issue ${issueId}${colors.reset}: "${issue?.title || 'Unbekannt'}"`);
+            branchList.forEach(branch => {
+                const isCurrent = branch === currentBranch;
+                console.log(`    ${isCurrent ? colors.green + '→' : ' '} ${branch}${isCurrent ? ' (AKTUELL)' : ''}${colors.reset}`);
+            });
+        });
+    }
+    
+    // Zeige verifizierte Verknüpfungen
+    if (relations.verified.length > 0) {
+        console.log(`\n${colors.green}✓ Verifizierte Verknüpfungen:${colors.reset}`);
+        relations.verified.slice(0, 5).forEach(({ branch, issue, issueData }) => {
+            const isCurrent = branch === currentBranch;
+            const status = issueData ? `[${issueData.priority.toUpperCase()}]` : '';
+            console.log(`  ${isCurrent ? colors.green + '→' : ' '} ${branch}${isCurrent ? ' (AKTUELL)' : ''} → ${issue} ${status} "${issueData?.title || 'Unbekannt'}"${colors.reset}`);
+        });
+        if (relations.verified.length > 5) {
+            console.log(`  ${colors.dim}... und ${relations.verified.length - 5} weitere${colors.reset}`);
         }
     }
     
-    // Andere aktive Branches mit Issues
-    const activeBranchesWithIssues = branches.active
-        .filter(b => memory[b]?.issue && b !== currentBranch)
-        .slice(0, 4);
+    // Zeige automatisch erkannte Verknüpfungen
+    if (relations.detected.length > 0) {
+        console.log(`\n${colors.cyan}✨ Automatisch erkannte Verknüpfungen:${colors.reset}`);
+        relations.detected.slice(0, 3).forEach(({ branch, issue, issueData }) => {
+            console.log(`  ${colors.cyan}?${colors.reset} ${branch} → ${issue} "${issueData?.title || 'Unbekannt'}"`);
+            console.log(`    ${colors.dim}→ Bestätigen mit: cn link "${branch}" ${issue}${colors.reset}`);
+        });
+    }
     
-    if (activeBranchesWithIssues.length > 0) {
-        activeBranchesWithIssues.forEach(branch => {
-            const data = memory[branch];
-            const issue = issues.find(i => i.id === data.issue);
-            const inLocal = branches.local.includes(branch);
-            const inRemote = branches.remote.includes(branch);
-            
-            let status = `- ${branch}`;
-            if (!inRemote) status = `- ${colors.yellow}${branch} (lokal)${colors.reset}`;
-            else if (!inLocal) status = `- ${colors.blue}${branch} (GitHub)${colors.reset}`;
-            
-            if (issue) {
-                status += ` → Issue ${data.issue}: "${issue.title}"`;
-            }
-            console.log(status);
+    // Zeige unverknüpfte Branches
+    if (relations.unlinked.length > 0) {
+        console.log(`\n${colors.yellow}⚠️  Branches ohne Issue-Verknüpfung:${colors.reset}`);
+        relations.unlinked.slice(0, 5).forEach(branch => {
+            const isCurrent = branch === currentBranch;
+            console.log(`  ${colors.yellow}○${colors.reset} ${branch}${isCurrent ? ' (AKTUELL)' : ''}`);
+        });
+        if (relations.unlinked.length > 5) {
+            console.log(`  ${colors.dim}... und ${relations.unlinked.length - 5} weitere${colors.reset}`);
+        }
+    }
+    
+    // Zeige Issues ohne Branch
+    if (unassignedIssues.length > 0) {
+        console.log(`\n${colors.red}📝 Issues ohne Branch:${colors.reset}`);
+        unassignedIssues.slice(0, 5).forEach(issue => {
+            const priorityColor = issue.priority === 'critical' ? colors.red :
+                                 issue.priority === 'high' ? colors.yellow : colors.cyan;
+            console.log(`  ${priorityColor}●${colors.reset} ${issue.id} [${issue.priority.toUpperCase()}] "${issue.title}"`);
+            const suggestedBranch = analyzer.suggestBranchName(issue);
+            console.log(`    ${colors.dim}→ git checkout -b ${suggestedBranch}${colors.reset}`);
         });
     }
     
     // ERWEITERTE EMPFEHLUNGEN
     console.log(`\n${colors.bright}✅ Empfehlungen:${colors.reset}`);
+    
+    // Generiere Empfehlungen mit dem Analyzer
+    const recommendations = analyzer.generateRecommendations(relations, unassignedIssues, currentBranch);
     
     let recommendationCount = 1;
     
@@ -803,41 +841,59 @@ async function showStatus() {
         recommendationCount++;
     }
     
-    // PRIORITÄT 3: Kritische Issues
-    const criticalOpenIssues = issues.filter(i => 
-        i.priority === 'critical' && 
-        i.status === 'open' &&
-        !i.assignee  // Nicht zugewiesen
-    );
+    // ANALYZER-BASIERTE EMPFEHLUNGEN
+    // Zeige nur die wichtigsten Empfehlungen
+    const highPriorityRecs = recommendations.filter(r => r.priority === 'high');
+    const mediumPriorityRecs = recommendations.filter(r => r.priority === 'medium');
     
-    if (criticalOpenIssues.length > 0) {
-        const issue = criticalOpenIssues[0];
-        console.log(`${colors.red}${recommendationCount}. KRITISCH: Arbeite an Issue ${issue.id}${colors.reset}`);
+    // Duplikate-Warnungen
+    highPriorityRecs.filter(r => r.type === 'warning').forEach(rec => {
+        console.log(`${colors.red}${recommendationCount}. ${rec.message}${colors.reset}`);
+        console.log(`   ${colors.dim}${rec.detail}${colors.reset}`);
+        console.log(`   ${colors.cyan}→ ${rec.action}${colors.reset}`);
+        recommendationCount++;
+    });
+    
+    // Kritische Issues ohne Branch
+    const criticalUnassigned = unassignedIssues.filter(i => i.priority === 'critical');
+    if (criticalUnassigned.length > 0) {
+        const issue = criticalUnassigned[0];
+        const suggestedBranch = analyzer.suggestBranchName(issue);
+        console.log(`${colors.red}${recommendationCount}. KRITISCH: Issue ${issue.id} hat keinen Branch${colors.reset}`);
         console.log(`   "${issue.title}"`);
-        console.log(`   ${colors.cyan}→ git checkout -b bugfix/issue-${issue.id.replace('#', '')}${colors.reset}`);
+        console.log(`   ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
         recommendationCount++;
     }
     
-    // PRIORITÄT 4: Aktuelles Issue/Branch weiterbearbeiten
-    if (currentBranchData?.issue) {
-        const issue = issues.find(i => i.id === currentBranchData.issue);
-        if (issue && issue.status === 'open') {
-            console.log(`${colors.green}${recommendationCount}. Weiterarbeiten an aktuellem Issue ${currentBranchData.issue}:${colors.reset}`);
-            console.log(`   "${issue.title}"`);
-            if (issue.priority === 'high') {
-                console.log(`   ${colors.yellow}[HIGH PRIORITY]${colors.reset}`);
-            }
-            recommendationCount++;
-        }
-    } else if (currentBranch.startsWith('feature/') || currentBranch.startsWith('bugfix/')) {
-        // Branch ohne Issue-Verknüpfung
-        console.log(`${colors.yellow}${recommendationCount}. Branch "${currentBranch}" hat keine Issue-Verknüpfung${colors.reset}`);
-        console.log(`   ${colors.cyan}→ Erstelle ein Issue oder verknüpfe mit bestehendem${colors.reset}`);
-        console.log(`   ${colors.dim}Tipp: Bearbeite project-memory.json für Verknüpfung${colors.reset}`);
+    // Unverknüpfte Branches
+    if (relations.unlinked.length > 0 && recommendationCount <= 6) {
+        const unlinkedBranch = relations.unlinked.find(b => b === currentBranch) || relations.unlinked[0];
+        console.log(`${colors.yellow}${recommendationCount}. Branch "${unlinkedBranch}" mit Issue verknüpfen:${colors.reset}`);
+        console.log(`   ${colors.cyan}→ cn link "${unlinkedBranch}"${colors.reset} (interaktive Auswahl)`);
         recommendationCount++;
     }
     
-    // PRIORITÄT 5: Offene Pull Requests
+    // Automatisch erkannte Verknüpfungen bestätigen
+    if (relations.detected.length > 0 && recommendationCount <= 7) {
+        const detected = relations.detected[0];
+        console.log(`${colors.cyan}${recommendationCount}. Erkannte Verknüpfung bestätigen:${colors.reset}`);
+        console.log(`   ${detected.branch} → ${detected.issue}`);
+        console.log(`   ${colors.cyan}→ cn confirm-link "${detected.branch}" ${detected.issue}${colors.reset}`);
+        recommendationCount++;
+    }
+    
+    // High Priority Issues ohne Branch
+    const highUnassigned = unassignedIssues.filter(i => i.priority === 'high');
+    if (highUnassigned.length > 0 && recommendationCount <= 8) {
+        const issue = highUnassigned[0];
+        const suggestedBranch = analyzer.suggestBranchName(issue);
+        console.log(`${colors.yellow}${recommendationCount}. High Priority Issue ${issue.id} bearbeiten:${colors.reset}`);
+        console.log(`   "${issue.title}"`);
+        console.log(`   ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
+        recommendationCount++;
+    }
+    
+    // Remote Branches auschecken
     const openPRs = prs.filter(pr => pr.status === 'open' && !pr.draft);
     if (openPRs.length > 0) {
         const oldestPR = openPRs.sort((a, b) => 
@@ -972,6 +1028,105 @@ async function syncRepository() {
     console.log(`\n${colors.green}✅ Synchronisation abgeschlossen!${colors.reset}`);
 }
 
+// Interaktive Branch-Issue Verknüpfung
+async function linkBranchToIssue(branchName) {
+    const memory = loadJSON(MEMORY_FILE, {});
+    const issues = loadJSON(ISSUES_FILE);
+    
+    // Wenn kein Branch angegeben, aktuellen Branch verwenden
+    if (!branchName) {
+        branchName = getCurrentBranch();
+    }
+    
+    console.log(`\n${colors.bright}🔗 Branch-Issue Verknüpfung${colors.reset}`);
+    console.log(`Branch: ${colors.cyan}${branchName}${colors.reset}\n`);
+    
+    // Prüfe ob bereits verknüpft
+    if (memory[branchName]?.issue) {
+        console.log(`${colors.yellow}⚠️  Branch ist bereits verknüpft mit Issue ${memory[branchName].issue}${colors.reset}`);
+        console.log(`Möchtest du die Verknüpfung ändern? (j/n)`);
+        
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        
+        const answer = await new Promise(resolve => {
+            rl.question('', resolve);
+        });
+        rl.close();
+        
+        if (answer.toLowerCase() !== 'j') {
+            return;
+        }
+    }
+    
+    // Zeige verfügbare Issues
+    const openIssues = issues.filter(i => i.status === 'open');
+    if (openIssues.length === 0) {
+        console.log(`${colors.red}Keine offenen Issues gefunden!${colors.reset}`);
+        return;
+    }
+    
+    console.log(`${colors.bright}Verfügbare Issues:${colors.reset}`);
+    openIssues.forEach((issue, index) => {
+        const priorityColor = issue.priority === 'critical' ? colors.red :
+                             issue.priority === 'high' ? colors.yellow : colors.cyan;
+        console.log(`  ${colors.bright}${index + 1}.${colors.reset} ${priorityColor}[${issue.priority.toUpperCase()}]${colors.reset} ${issue.id}: ${issue.title}`);
+    });
+    
+    console.log(`\n${colors.cyan}Wähle ein Issue (1-${openIssues.length}) oder 0 zum Abbrechen:${colors.reset}`);
+    
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    
+    const choice = await new Promise(resolve => {
+        rl.question('', resolve);
+    });
+    rl.close();
+    
+    const index = parseInt(choice) - 1;
+    if (index < 0 || index >= openIssues.length) {
+        console.log(`${colors.yellow}Abgebrochen${colors.reset}`);
+        return;
+    }
+    
+    const selectedIssue = openIssues[index];
+    
+    // Speichere Verknüpfung
+    if (!memory[branchName]) {
+        memory[branchName] = {};
+    }
+    memory[branchName].issue = selectedIssue.id;
+    memory[branchName].linkedAt = new Date().toISOString();
+    memory[branchName].lastActivity = new Date().toISOString();
+    
+    saveJSON(MEMORY_FILE, memory);
+    
+    console.log(`\n${colors.green}✅ Branch "${branchName}" wurde mit Issue ${selectedIssue.id} verknüpft!${colors.reset}`);
+    console.log(`   "${selectedIssue.title}"`);
+}
+
+// Bestätige automatisch erkannte Verknüpfung
+function confirmLink(branchName, issueId) {
+    const memory = loadJSON(MEMORY_FILE, {});
+    
+    if (!memory[branchName]) {
+        memory[branchName] = {};
+    }
+    
+    memory[branchName].issue = issueId;
+    memory[branchName].linkedAt = new Date().toISOString();
+    memory[branchName].lastActivity = new Date().toISOString();
+    memory[branchName].autoDetected = true;
+    
+    saveJSON(MEMORY_FILE, memory);
+    
+    console.log(`${colors.green}✅ Verknüpfung bestätigt: "${branchName}" → ${issueId}${colors.reset}`);
+}
+
 // Update Command
 async function updateStatus() {
     await syncRepository();
@@ -980,6 +1135,7 @@ async function updateStatus() {
 
 // CLI Entry Point
 const command = process.argv[2] || 'status';
+const args = process.argv.slice(3);
 
 switch (command) {
     case 'status':
@@ -994,6 +1150,18 @@ switch (command) {
         updateStatus();
         break;
     
+    case 'link':
+        linkBranchToIssue(args[0]);
+        break;
+    
+    case 'confirm-link':
+        if (args.length < 2) {
+            console.log(`${colors.red}Verwendung: cn confirm-link <branch> <issue>${colors.reset}`);
+        } else {
+            confirmLink(args[0], args[1]);
+        }
+        break;
+    
     case 'cleanup':
         cleanupBranches(true);
         break;
@@ -1003,6 +1171,13 @@ switch (command) {
         break;
     
     default:
-        console.log(`Unbekannter Befehl: ${command}`);
-        console.log('Verfügbare Befehle: status, sync, update, cleanup, cleanup:force');
+        console.log(`${colors.red}Unbekannter Befehl: ${command}${colors.reset}`);
+        console.log('\nVerfügbare Befehle:');
+        console.log('  status            - Zeigt Projekt-Status und Empfehlungen');
+        console.log('  sync              - Synchronisiert Repository mit Remote');
+        console.log('  update            - Sync + Status kombiniert');
+        console.log('  link [branch]     - Verknüpft Branch mit Issue (interaktiv)');
+        console.log('  confirm-link      - Bestätigt automatisch erkannte Verknüpfung');
+        console.log('  cleanup           - Zeigt zu löschende Branches (dry-run)');
+        console.log('  cleanup:force     - Löscht merged/geschlossene Branches');
 }
