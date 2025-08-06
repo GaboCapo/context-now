@@ -156,9 +156,7 @@ function updatePackageJson(projectPath) {
         packageJson.scripts['context-now:handover'] = 'node tools/context-tracker/context-tracker.js handover';
         
         fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
-        console.log(`${colors.green}✅ NPM Scripts zu package.json hinzugefügt${colors.reset}`); else {
-            console.log(`${colors.dim}  → NPM Scripts bereits vorhanden${colors.reset}`);
-        }
+        console.log(`${colors.green}✅ NPM Scripts zu package.json hinzugefügt${colors.reset}`);
     } catch (e) {
         console.error(`${colors.red}Fehler beim Update der package.json:${colors.reset}`, e.message);
     }
