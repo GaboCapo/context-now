@@ -69,18 +69,18 @@ cn -l
 ### Zu Projekt wechseln
 ```bash
 cn -g 1                    # Nach Nummer
-cn -g persona-nexus-manager # Nach Name
+cn -g mein-projekt         # Nach Name
 ```
 
 ### Projekt-Status anzeigen
 ```bash
 cn -s                      # Aktuelles Projekt
-cn -s persona-nexus-manager # Spezifisches Projekt
+cn -s mein-projekt         # Spezifisches Projekt
 ```
 
 ### Projekt trennen
 ```bash
-cn -d persona-nexus-manager
+cn -d mein-projekt
 ```
 
 ## 🗑️ Deinstallation

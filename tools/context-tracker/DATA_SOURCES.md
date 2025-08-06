@@ -39,22 +39,16 @@ git fetch --all --prune
 
 ## 📋 Aktualisierung der github-branches.json
 
-1. Gehe zu: https://github.com/GaboCapo/persona-nexus-manager/branches
+1. Gehe zu: https://github.com/[YOUR-USERNAME]/[YOUR-REPO]/branches
 2. Kopiere die Branch-Namen
 3. Update die Datei:
 
 ```json
 [
+  "main",
   "develop",
-  "test/combined-fixes-pr-123-124",
-  "feature/issue-87-central-decorators",
-  "feature/issue-105-electron-ipc-bridge",
-  "backup/pre-mvvm-complete",
-  "bugfix/issue-113-platforms-null-check",
-  "bugfix/react-jsx-transform-fix",
-  "bugfix/critical-settings-viewmodel-fixes",
-  "fix/react-import-cleanup",
-  "feature/mvvm-verification"
+  "feature/your-feature",
+  "bugfix/your-fix"
 ]
 ```
 
