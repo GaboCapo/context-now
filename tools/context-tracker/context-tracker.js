@@ -511,14 +511,32 @@ async function updateGitHubData() {
 
 // Erweiterte Status-Anzeige
 async function showStatus() {
-    // DIREKT LADEN WIE FRÜHER!
+    // Erst GitHub-Daten aktualisieren für aktuelle Issues
+    console.log(`${colors.cyan}🔄 Prüfe Status...${colors.reset}`);
+    
+    // GitHub-Daten abrufen (mit Fehlerbehandlung)
+    try {
+        console.log(`${colors.dim}  → Versuche git fetch für aktuelle Daten...${colors.reset}`);
+        gitCommand('git fetch --quiet 2>/dev/null');
+        
+        const githubData = await updateGitHubData();
+        if (githubData && githubData.issues) {
+            // Speichere aktualisierte Daten
+            saveJSON(ISSUES_FILE, githubData.issues);
+            if (githubData.prs) {
+                saveJSON(PRS_FILE, githubData.prs);
+            }
+        }
+    } catch (e) {
+        console.log(`${colors.dim}  → Verwende lokale Daten (GitHub nicht erreichbar)${colors.reset}`);
+    }
+    
+    // Jetzt die aktualisierten Daten laden
     const issues = loadJSON(ISSUES_FILE);
     const prs = loadJSON(PRS_FILE);
     const memory = loadJSON(MEMORY_FILE, {});
     const currentBranch = getCurrentBranch();
     const gitStatus = getGitStatus();
-    
-    console.log(`${colors.cyan}🔄 Prüfe Status...${colors.reset}`);
     
     // Remote Branches holen
     const localBranches = getLocalBranches();
@@ -556,7 +574,7 @@ async function showStatus() {
     console.log(`- ${openPRsCount} offene Pull Requests`);
     
     // DETAILLIERTE ISSUE-LISTE
-    if (issues.length > 0) {
+    if (issues.length > 0 && issues.filter(i => i.status === 'open').length > 0) {
         console.log(`\n${colors.bright}📋 Issues im Detail:${colors.reset}`);
         
         // Kritische Issues
@@ -601,6 +619,12 @@ async function showStatus() {
             if (moreCount > 0) {
                 console.log(`  ${colors.dim}... und ${moreCount} weitere${colors.reset}`);
             }
+        }
+    } else {
+        // Keine offenen Issues vorhanden
+        const openIssuesCount = issues.filter(i => i.status === 'open').length;
+        if (openIssuesCount === 0 && issues.length === 0) {
+            console.log(`\n${colors.green}✨ Keine offenen Issues vorhanden${colors.reset}`);
         }
     }
     
