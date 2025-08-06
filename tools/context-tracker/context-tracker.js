@@ -437,30 +437,50 @@ async function updateGitHubData() {
     const githubInfo = getGitHubInfo();
     if (!githubInfo) {
         console.log(`${colors.yellow}  ⚠️  Kein GitHub-Repository erkannt${colors.reset}`);
-        return { issues: [], prs: [] };
+        // Lade lokale Daten als Fallback
+        return { 
+            issues: loadJSON(ISSUES_FILE), 
+            prs: loadJSON(PRS_FILE) 
+        };
     }
     
-    let issues = [];
-    let prs = [];
+    let issues = loadJSON(ISSUES_FILE);  // Lade zuerst lokale Issues
+    let prs = loadJSON(PRS_FILE);        // Lade zuerst lokale PRs
     
     try {
         console.log(`${colors.cyan}  → Hole Issues von GitHub...${colors.reset}`);
-        issues = await fetchGitHubIssues(githubInfo.owner, githubInfo.repo);
-        saveJSON(ISSUES_FILE, issues);
-        console.log(`${colors.green}  ✓ ${issues.length} Issues abgerufen${colors.reset}`);
+        const githubIssues = await fetchGitHubIssues(githubInfo.owner, githubInfo.repo);
+        // Nur bei Erfolg überschreiben
+        if (githubIssues && githubIssues.length > 0) {
+            issues = githubIssues;
+            saveJSON(ISSUES_FILE, issues);
+            console.log(`${colors.green}  ✓ ${issues.length} Issues von GitHub abgerufen${colors.reset}`);
+        } else if (issues.length > 0) {
+            console.log(`${colors.dim}  → Verwende ${issues.length} lokale Issues${colors.reset}`);
+        }
     } catch (e) {
-        console.log(`${colors.yellow}  ⚠️  Issues konnten nicht abgerufen werden: ${e.message}${colors.reset}`);
-        issues = loadJSON(ISSUES_FILE);
+        console.log(`${colors.yellow}  ⚠️  GitHub API: ${e.message}${colors.reset}`);
+        if (issues.length > 0) {
+            console.log(`${colors.cyan}  → Verwende ${issues.length} lokale Issues als Fallback${colors.reset}`);
+        }
     }
     
     try {
         console.log(`${colors.cyan}  → Hole Pull Requests von GitHub...${colors.reset}`);
-        prs = await fetchGitHubPRs(githubInfo.owner, githubInfo.repo);
-        saveJSON(PRS_FILE, prs);
-        console.log(`${colors.green}  ✓ ${prs.length} Pull Requests abgerufen${colors.reset}`);
+        const githubPRs = await fetchGitHubPRs(githubInfo.owner, githubInfo.repo);
+        // Nur bei Erfolg überschreiben
+        if (githubPRs && githubPRs.length > 0) {
+            prs = githubPRs;
+            saveJSON(PRS_FILE, prs);
+            console.log(`${colors.green}  ✓ ${prs.length} Pull Requests von GitHub abgerufen${colors.reset}`);
+        } else if (prs.length > 0) {
+            console.log(`${colors.dim}  → Verwende ${prs.length} lokale PRs${colors.reset}`);
+        }
     } catch (e) {
-        console.log(`${colors.yellow}  ⚠️  PRs konnten nicht abgerufen werden: ${e.message}${colors.reset}`);
-        prs = loadJSON(PRS_FILE);
+        console.log(`${colors.yellow}  ⚠️  GitHub API: ${e.message}${colors.reset}`);
+        if (prs.length > 0) {
+            console.log(`${colors.cyan}  → Verwende ${prs.length} lokale PRs als Fallback${colors.reset}`);
+        }
     }
     
     return { issues, prs };
