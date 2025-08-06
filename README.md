@@ -1,3 +1,5 @@
+<img width="1024" height="1024" alt="Image" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
+
 # 🎯 Context-Now - Multi-Projekt Management Tool
 
 Ein intelligentes Tool zur zentralen Verwaltung von Projekt-Kontexten, Issues, Branches und Pull Requests über mehrere Projekte hinweg.
