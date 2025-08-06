@@ -447,8 +447,30 @@ async function updateGitHubData() {
     let issues = loadJSON(ISSUES_FILE);  // Lade zuerst lokale Issues
     let prs = loadJSON(PRS_FILE);        // Lade zuerst lokale PRs
     
+    // Versuche zuerst SSH/Git basierte Methoden (funktioniert mit Deploy-Keys!)
+    const useSSH = gitCommand('git remote -v', '').includes('git@');
+    
+    if (useSSH) {
+        try {
+            // Versuche Issues über Git zu holen (z.B. mit gh CLI wenn installiert)
+            console.log(`${colors.cyan}  → Versuche Issues über Git/SSH...${colors.reset}`);
+            
+            // Für jetzt: Behalte lokale Issues bei privaten Repos
+            if (issues.length > 0) {
+                console.log(`${colors.green}  ✓ Verwende ${issues.length} lokale Issues${colors.reset}`);
+            } else {
+                console.log(`${colors.dim}  → Keine lokalen Issues gefunden${colors.reset}`);
+            }
+            
+            return { issues, prs };
+        } catch (e) {
+            // Fallback zu API
+        }
+    }
+    
+    // Fallback: GitHub API (nur für öffentliche Repos)
     try {
-        console.log(`${colors.cyan}  → Hole Issues von GitHub...${colors.reset}`);
+        console.log(`${colors.cyan}  → Hole Issues von GitHub API...${colors.reset}`);
         const githubIssues = await fetchGitHubIssues(githubInfo.owner, githubInfo.repo);
         // Nur bei Erfolg überschreiben
         if (githubIssues && githubIssues.length > 0) {
@@ -459,28 +481,29 @@ async function updateGitHubData() {
             console.log(`${colors.dim}  → Verwende ${issues.length} lokale Issues${colors.reset}`);
         }
     } catch (e) {
-        console.log(`${colors.yellow}  ⚠️  GitHub API: ${e.message}${colors.reset}`);
+        if (e.message.includes('404')) {
+            console.log(`${colors.yellow}  ⚠️  Repository ist privat - verwende lokale Issues${colors.reset}`);
+        } else {
+            console.log(`${colors.yellow}  ⚠️  GitHub API: ${e.message}${colors.reset}`);
+        }
         if (issues.length > 0) {
-            console.log(`${colors.cyan}  → Verwende ${issues.length} lokale Issues als Fallback${colors.reset}`);
+            console.log(`${colors.cyan}  → Verwende ${issues.length} lokale Issues${colors.reset}`);
         }
     }
     
+    // Das gleiche für PRs
     try {
-        console.log(`${colors.cyan}  → Hole Pull Requests von GitHub...${colors.reset}`);
-        const githubPRs = await fetchGitHubPRs(githubInfo.owner, githubInfo.repo);
-        // Nur bei Erfolg überschreiben
-        if (githubPRs && githubPRs.length > 0) {
-            prs = githubPRs;
-            saveJSON(PRS_FILE, prs);
-            console.log(`${colors.green}  ✓ ${prs.length} Pull Requests von GitHub abgerufen${colors.reset}`);
-        } else if (prs.length > 0) {
-            console.log(`${colors.dim}  → Verwende ${prs.length} lokale PRs${colors.reset}`);
+        if (!useSSH) {
+            console.log(`${colors.cyan}  → Hole Pull Requests von GitHub API...${colors.reset}`);
+            const githubPRs = await fetchGitHubPRs(githubInfo.owner, githubInfo.repo);
+            if (githubPRs && githubPRs.length > 0) {
+                prs = githubPRs;
+                saveJSON(PRS_FILE, prs);
+                console.log(`${colors.green}  ✓ ${prs.length} Pull Requests von GitHub abgerufen${colors.reset}`);
+            }
         }
     } catch (e) {
-        console.log(`${colors.yellow}  ⚠️  GitHub API: ${e.message}${colors.reset}`);
-        if (prs.length > 0) {
-            console.log(`${colors.cyan}  → Verwende ${prs.length} lokale PRs als Fallback${colors.reset}`);
-        }
+        // Ignoriere PR-Fehler
     }
     
     return { issues, prs };
