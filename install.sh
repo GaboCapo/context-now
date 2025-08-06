@@ -181,6 +181,26 @@ install_context_now() {
         sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$INSTALL_DIR\"|g" "$INSTALL_DIR/cn" 2>/dev/null || true
     fi
     
+    # Create projects.json from template if it doesn't exist
+    if [ ! -f "$INSTALL_DIR/projects.json" ]; then
+        if [ -f "$INSTALL_DIR/projects.json.template" ]; then
+            cp "$INSTALL_DIR/projects.json.template" "$INSTALL_DIR/projects.json"
+        else
+            # Create default projects.json
+            cat > "$INSTALL_DIR/projects.json" << 'EOF'
+{
+  "projects": [],
+  "settings": {
+    "defaultEditor": "code",
+    "autoSync": true,
+    "colorOutput": true,
+    "maxRecentProjects": 10
+  }
+}
+EOF
+        fi
+    fi
+    
     print_success "Context-Now installed to $INSTALL_DIR"
 }
 
