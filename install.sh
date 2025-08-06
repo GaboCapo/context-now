@@ -185,7 +185,7 @@ setup_environment() {
     local shell_config=$(get_shell_config)
     local shell_type=$(detect_shell)
     
-    # Create environment configuration
+    # Create environment configuration for bash/zsh
     cat > "$CONFIG_DIR/env.sh" << EOF
 # Context-Now Environment Variables
 export CONTEXT_NOW_HOME="$INSTALL_DIR"
@@ -215,6 +215,52 @@ cn-backup() {
 }
 EOF
     
+    # Create Fish-specific configuration
+    if [ "$shell_type" = "fish" ]; then
+        mkdir -p "$HOME/.config/fish/functions"
+        
+        # Environment variables for Fish
+        cat > "$CONFIG_DIR/env.fish" << EOF
+# Context-Now Environment Variables for Fish
+set -gx CONTEXT_NOW_HOME "$INSTALL_DIR"
+set -gx CONTEXT_NOW_CONFIG "$CONFIG_DIR"
+set -gx CONTEXT_NOW_PROJECTS "$CONFIG_DIR/projects.json"
+set -gx PATH \$PATH "$BIN_DIR"
+
+# Aliases for Fish
+alias cn '$INSTALL_DIR/cn'
+alias kontext '$INSTALL_DIR/cn'
+alias context '$INSTALL_DIR/cn'
+EOF
+        
+        # Functions for Fish
+        cat > "$HOME/.config/fish/functions/cn-update.fish" << EOF
+function cn-update
+    cd "$INSTALL_DIR" && git pull && cd - > /dev/null
+    echo "Context-Now updated successfully!"
+end
+EOF
+        
+        cat > "$HOME/.config/fish/functions/cn-edit.fish" << EOF
+function cn-edit
+    if set -q EDITOR
+        \$EDITOR "$CONFIG_DIR/projects.json"
+    else
+        nano "$CONFIG_DIR/projects.json"
+    end
+end
+EOF
+        
+        cat > "$HOME/.config/fish/functions/cn-backup.fish" << EOF
+function cn-backup
+    set backup_file "$CONFIG_DIR/backup_(date +%Y%m%d_%H%M%S).tar.gz"
+    tar -czf "\$backup_file" -C "$CONFIG_DIR" .
+    echo "Backup created: \$backup_file"
+end
+EOF
+        print_success "Fish-specific configuration created"
+    fi
+    
     print_success "Environment configuration created"
 }
 
@@ -242,6 +288,26 @@ update_shell_config() {
     local shell_config=$(get_shell_config)
     local shell_type=$(detect_shell)
     
+    # Special handling for Fish shell
+    if [ "$shell_type" = "fish" ]; then
+        # Check if already configured
+        if grep -q "CONTEXT_NOW_HOME" "$shell_config" 2>/dev/null; then
+            print_warning "Shell already configured, skipping..."
+            return
+        fi
+        
+        # Add Fish configuration
+        echo "" >> "$shell_config"
+        echo "# Context-Now Configuration" >> "$shell_config"
+        echo "if test -f \"$CONFIG_DIR/env.fish\"" >> "$shell_config"
+        echo "    source \"$CONFIG_DIR/env.fish\"" >> "$shell_config"
+        echo "end" >> "$shell_config"
+        
+        print_success "Fish shell configuration updated: $shell_config"
+        return
+    fi
+    
+    # For Bash/Zsh
     # Check if already configured
     if grep -q "CONTEXT_NOW_HOME" "$shell_config" 2>/dev/null; then
         print_warning "Shell already configured, skipping..."
