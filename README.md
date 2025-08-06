@@ -2,17 +2,33 @@
   <img width="256" height="256" alt="Context-Now Logo" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
 </p>
 
-# 🎯 Context-Now - Multi-Projekt Management Tool
+# 🎯 Context-Now - Git Project Context Tracker
 
-Ein intelligentes Tool zur zentralen Verwaltung von Projekt-Kontexten, Issues, Branches und Pull Requests über mehrere Projekte hinweg.
+Ein intelligentes Tool zur Verwaltung von Git-Projekt-Kontexten, Issues, Branches und Pull Requests mit automatischer Synchronisation.
 
 ## ✨ Features
 
-- **Multi-Projekt Management**: Verwalte mehrere Projekte zentral
-- **Symlink-basiert**: Templates und Scripts werden geteilt, Daten bleiben projektspezifisch
+- **Git-Integration**: Live-Synchronisation mit lokalen und Remote-Branches, automatisches Branch-zu-Issue Mapping
+- **Issue & PR Tracking**: Verwalte Issues und Pull Requests direkt aus dem Terminal
 - **Intelligente Empfehlungen**: Kontextbewusste Arbeitsempfehlungen basierend auf Issue-Beziehungen
 - **Entwickler-Übergabe**: Spezielle Modi für nahtlose Team-Übergaben
-- **Git-Integration**: Live-Synchronisation mit lokalen und Remote-Branches
+- **Multi-Projekt Support**: Verwalte mehrere Git-Projekte mit einem Tool
+- **Symlink-basiert**: Templates und Scripts werden geteilt, Daten bleiben projektspezifisch
+
+## 🔧 Git Provider Kompatibilität
+
+| Provider | Status | Hinweise |
+|----------|--------|----------|
+| GitHub | ✅ Vollständig getestet | Alle Features funktionieren |
+| GitLab | 🟠 Nicht getestet | Contributions willkommen! |
+| Bitbucket | 🟠 Nicht getestet | Contributions willkommen! |
+| Gitea | 🟠 Nicht getestet | Contributions willkommen! |
+| Azure DevOps | 🟠 Nicht getestet | Contributions willkommen! |
+| AWS CodeCommit | 🟠 Nicht getestet | Contributions willkommen! |
+| SourceForge | 🟠 Nicht getestet | Contributions willkommen! |
+| Codeberg | 🟠 Nicht getestet | Contributions willkommen! |
+
+> **Hinweis:** Context-Now wurde bisher nur mit GitHub getestet. Wir freuen uns über Feedback und Contributions für andere Git-Provider! Wenn du es mit einem anderen Provider testest, lass es uns wissen via [Issues](https://github.com/GaboCapo/context-now/issues).
 
 ## 🚀 Installation
 
@@ -217,7 +233,40 @@ npm run context:handover
 - **Relations nutzen**: Definiere EPICs und Bug-Beziehungen
 - **Symlinks behalten**: Lösche nie die Symlinks, nur die JSON-Daten sind projektspezifisch
 
+## 🤝 Contributing
+
+### Git-Provider Testing
+Wir suchen Tester für andere Git-Provider! Wenn du Context-Now mit GitLab, Bitbucket oder anderen Providern testest:
+
+1. Fork das Repository
+2. Teste die Funktionalität mit deinem Provider
+3. Dokumentiere was funktioniert/nicht funktioniert
+4. Erstelle einen Pull Request oder Issue mit deinen Ergebnissen
+
+### Entwicklung
+```bash
+# Repository forken und klonen
+git clone https://github.com/[dein-username]/context-now.git
+cd context-now
+
+# Feature-Branch erstellen
+git checkout -b feature/gitlab-support
+
+# Änderungen committen
+git commit -m "Add GitLab support"
+
+# Pull Request erstellen
+```
+
+### Issue Reports
+Bei Problemen bitte ein [Issue](https://github.com/GaboCapo/context-now/issues) mit folgenden Infos erstellen:
+- Git-Provider (GitHub, GitLab, etc.)
+- Shell-Type (bash, zsh, fish)
+- Fehlermeldung
+- Steps to reproduce
+
 ---
 
 **Version**: 2.0.0  
-**Lizenz**: MIT
+**Lizenz**: MIT  
+**Maintainer**: GaboCapo
