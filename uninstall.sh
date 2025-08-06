@@ -17,6 +17,7 @@ BOLD='\033[1m'
 INSTALL_DIR="$HOME/.context-now"
 CONFIG_DIR="$HOME/.config/context-now"
 BIN_DIR="$HOME/.local/bin"
+SOURCE_DIR="$HOME/Code/context-now"
 
 print_header() {
     printf "${RED}\n"
@@ -67,6 +68,7 @@ printf "${YELLOW}This will remove Context-Now from your system.${NC}\n\n"
 printf "${CYAN}Found installations:${NC}\n"
 [ -d "$INSTALL_DIR" ] && printf "  • Installation directory: $INSTALL_DIR\n"
 [ -d "$CONFIG_DIR" ] && printf "  • Configuration directory: $CONFIG_DIR\n"
+[ -d "$SOURCE_DIR" ] && printf "  • Source repository: $SOURCE_DIR\n"
 [ -L "$BIN_DIR/cn" ] && printf "  • Symlink: $BIN_DIR/cn\n"
 [ -L "$BIN_DIR/kontext" ] && printf "  • Symlink: $BIN_DIR/kontext\n"
 [ -L "$BIN_DIR/context" ] && printf "  • Symlink: $BIN_DIR/context\n"
@@ -104,6 +106,19 @@ rm -f "$HOME/.config/fish/functions/cn-backup.fish" 2>/dev/null || true
 if [ -d "$INSTALL_DIR" ]; then
     printf "  • Removing installation directory...\n"
     rm -rf "$INSTALL_DIR"
+fi
+
+# Ask about source repository
+if [ -d "$SOURCE_DIR" ]; then
+    printf "\n${YELLOW}Source repository found at: $SOURCE_DIR${NC}\n"
+    printf "Remove source repository too? (y/N): "
+    read -r REPLY
+    if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
+        printf "  • Removing source repository...\n"
+        rm -rf "$SOURCE_DIR"
+    else
+        printf "${CYAN}Source repository kept at: $SOURCE_DIR${NC}\n"
+    fi
 fi
 
 # Ask about config
