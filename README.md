@@ -1,198 +1,200 @@
+*[Deutsch](README.de.md) | English*
+
 <p align="center">
   <img width="256" height="256" alt="Context-Now Logo" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
 </p>
 
 # 🎯 Context-Now - Git Project Context Tracker
 
-Ein intelligentes Tool zur Verwaltung von Git-Projekt-Kontexten, Issues, Branches und Pull Requests mit automatischer Synchronisation.
+An intelligent tool for managing Git project contexts, issues, branches and pull requests with automatic synchronization.
 
 ## ✨ Features
 
-- **Git-Integration**: Live-Synchronisation mit lokalen und Remote-Branches, automatisches Branch-zu-Issue Mapping
-- **Issue & PR Tracking**: Verwalte Issues und Pull Requests direkt aus dem Terminal
-- **Intelligente Empfehlungen**: Kontextbewusste Arbeitsempfehlungen basierend auf Issue-Beziehungen
-- **Entwickler-Übergabe**: Spezielle Modi für nahtlose Team-Übergaben
-- **Multi-Projekt Support**: Verwalte mehrere Git-Projekte mit einem Tool
-- **Symlink-basiert**: Templates und Scripts werden geteilt, Daten bleiben projektspezifisch
+- **Git Integration**: Live synchronization with local and remote branches, automatic branch-to-issue mapping
+- **Issue & PR Tracking**: Manage issues and pull requests directly from the terminal
+- **Smart Recommendations**: Context-aware work recommendations based on issue relationships
+- **Developer Handover**: Special modes for seamless team handovers
+- **Multi-Project Support**: Manage multiple Git projects with one tool
+- **Symlink-based**: Templates and scripts are shared, data remains project-specific
 
-## 🔧 Git Provider Kompatibilität
+## 🔧 Git Provider Compatibility
 
-| Provider | Status | Hinweise |
-|----------|--------|----------|
-| GitHub | ✅ Vollständig getestet | Alle Features funktionieren |
-| GitLab | 🟠 Nicht getestet | Contributions willkommen! |
-| Bitbucket | 🟠 Nicht getestet | Contributions willkommen! |
-| Gitea | 🟠 Nicht getestet | Contributions willkommen! |
-| Azure DevOps | 🟠 Nicht getestet | Contributions willkommen! |
-| AWS CodeCommit | 🟠 Nicht getestet | Contributions willkommen! |
-| SourceForge | 🟠 Nicht getestet | Contributions willkommen! |
-| Codeberg | 🟠 Nicht getestet | Contributions willkommen! |
+| Provider | Status | Notes |
+|----------|--------|-------|
+| GitHub | ✅ Fully tested | All features work |
+| GitLab | 🟠 Not tested | Contributions welcome! |
+| Bitbucket | 🟠 Not tested | Contributions welcome! |
+| Gitea | 🟠 Not tested | Contributions welcome! |
+| Azure DevOps | 🟠 Not tested | Contributions welcome! |
+| AWS CodeCommit | 🟠 Not tested | Contributions welcome! |
+| SourceForge | 🟠 Not tested | Contributions welcome! |
+| Codeberg | 🟠 Not tested | Contributions welcome! |
 
-> **Hinweis:** Context-Now wurde bisher nur mit GitHub getestet. Wir freuen uns über Feedback und Contributions für andere Git-Provider! Wenn du es mit einem anderen Provider testest, lass es uns wissen via [Issues](https://github.com/GaboCapo/context-now/issues).
+> **Note:** Context-Now has only been tested with GitHub so far. We welcome feedback and contributions for other Git providers! If you test it with another provider, let us know via [Issues](https://github.com/GaboCapo/context-now/issues).
 
 ## 🚀 Installation
 
-### Schnellinstallation (Empfohlen) 
+### Quick Installation (Recommended)
 ```bash
-# Ein-Befehl-Installation
+# One-command installation
 curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/quick-setup.sh | bash
 
-# Oder mit git clone + Installer
+# Or with git clone + installer
 git clone https://github.com/GaboCapo/context-now.git ~/Code/context-now
 cd ~/Code/context-now && ./install.sh
 ```
 
-### Was wird installiert?
+### What gets installed?
 - ✅ Context-Now in `~/.context-now`
-- ✅ Konfiguration in `~/.config/context-now`  
-- ✅ Aliase: `cn`, `kontext`, `context`
-- ✅ Auto-Completion für bash/zsh
-- ✅ Environment-Variablen
-- ✅ Hilfs-Funktionen (cn-update, cn-backup, cn-edit)
+- ✅ Configuration in `~/.config/context-now`
+- ✅ Aliases: `cn`, `kontext`, `context`
+- ✅ Auto-completion for bash/zsh/fish
+- ✅ Environment variables
+- ✅ Helper functions (cn-update, cn-backup, cn-edit)
 
-Siehe [INSTALLATION_COMPLETE.md](INSTALLATION_COMPLETE.md) für alle Optionen.
+See [INSTALLATION_COMPLETE.md](INSTALLATION_COMPLETE.md) for all options.
 
-## 📋 Verwendung
+## 📋 Usage
 
-### Projekt verbinden
+### Connect a project
 ```bash
-cn -c /pfad/zu/deinem/projekt
-# oder
-~/Code/context-now/cn -c ~/Code/mein-projekt
+cn -c /path/to/your/project
+# or
+~/Code/context-now/cn -c ~/Code/my-project
 ```
 
-### Projekte auflisten
+### List projects
 ```bash
 cn -l
 ```
 
-### Zu Projekt wechseln
+### Switch to project
 ```bash
-cn -g 1                    # Nach Nummer
-cn -g persona-nexus-manager # Nach Name
+cn -g 1                    # By number
+cn -g persona-nexus-manager # By name
 ```
 
-### Projekt-Status anzeigen
+### Show project status
 ```bash
-cn -s                      # Aktuelles Projekt
-cn -s persona-nexus-manager # Spezifisches Projekt
+cn -s                      # Current project
+cn -s persona-nexus-manager # Specific project
 ```
 
-### Projekt trennen
+### Disconnect project
 ```bash
 cn -d persona-nexus-manager
 ```
 
-## 🗑️ Deinstallation
+## 🗑️ Uninstallation
 
-### Schnell-Deinstallation (Ein Befehl)
+### Quick Uninstallation (One command)
 ```bash
-# Komplette Deinstallation mit einem Befehl
+# Complete uninstallation with one command
 curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh | bash
 ```
 
-### Alternative: Mit geklontem Repository
+### Alternative: With cloned repository
 ```bash
-# Wenn Repository noch vorhanden
+# If repository still exists
 ~/Code/context-now/uninstall.sh
 
-# Oder mit dem Original-Installer
+# Or with the original installer
 ~/Code/context-now/install.sh --uninstall
 ```
 
-### Manuelle Deinstallation
+### Manual Uninstallation
 ```bash
-# 1. Symlinks entfernen
+# 1. Remove symlinks
 rm -f ~/.local/bin/cn ~/.local/bin/kontext ~/.local/bin/context
 
-# 2. Installation entfernen  
+# 2. Remove installation
 rm -rf ~/.context-now
 
-# 3. Konfiguration entfernen (optional, enthält deine Projekt-Daten!)
+# 3. Remove configuration (optional, contains your project data!)
 rm -rf ~/.config/context-now
 
-# 4. Fish-Funktionen entfernen (falls Fish genutzt)
+# 4. Remove Fish functions (if Fish is used)
 rm -f ~/.config/fish/functions/cn-*.fish
 
-# 5. Shell-Config bereinigen (manuell editieren)
-# Entferne Context-Now Zeilen aus ~/.bashrc, ~/.zshrc oder ~/.config/fish/config.fish
+# 5. Clean shell config (edit manually)
+# Remove Context-Now lines from ~/.bashrc, ~/.zshrc or ~/.config/fish/config.fish
 ```
 
-## 🔧 Was passiert beim Verbinden?
+## 🔧 What happens when connecting?
 
-1. **Symlinks werden erstellt**:
-   - `context-tracker.js` → Hauptscript (geteilt)
-   - `*.template.json` → Templates (geteilt, read-only)
+1. **Symlinks are created**:
+   - `context-tracker.js` → Main script (shared)
+   - `*.template.json` → Templates (shared, read-only)
 
-2. **Projekt-spezifische Dateien werden erstellt**:
-   - `issues.json` - Deine Issues
-   - `prs.json` - Pull Requests
-   - `project-memory.json` - Branch-Verknüpfungen
-   - `github-branches.json` - GitHub Branch-Liste
-   - `issue-relations.json` - Issue-Beziehungen
+2. **Project-specific files are created**:
+   - `issues.json` - Your issues
+   - `prs.json` - Pull requests
+   - `project-memory.json` - Branch associations
+   - `github-branches.json` - GitHub branch list
+   - `issue-relations.json` - Issue relationships
 
-3. **NPM Scripts werden hinzugefügt**:
-   - `npm run context` - Status anzeigen
-   - `npm run context:sync` - Repository synchronisieren
+3. **NPM scripts are added**:
+   - `npm run context` - Show status
+   - `npm run context:sync` - Sync repository
    - `npm run context:update` - Sync + Status
 
-## 📂 Struktur
+## 📂 Structure
 
 ```
 context-now/
-├── context-now.js         # Multi-Projekt Manager
-├── cn                     # Launcher Script
-├── projects.json          # Projekt-Registry
+├── context-now.js         # Multi-project manager
+├── cn                     # Launcher script
+├── projects.json          # Project registry
 └── tools/
     └── context-tracker/
-        ├── context-tracker.js    # Hauptscript (geteilt via Symlink)
-        ├── *.template.json        # Templates (geteilt)
-        └── DATA_SOURCES.md        # Dokumentation
+        ├── context-tracker.js    # Main script (shared via symlink)
+        ├── *.template.json        # Templates (shared)
+        └── DATA_SOURCES.md        # Documentation
 ```
 
-Projekte:
+Projects:
 ```
-dein-projekt/
+your-project/
 └── tools/
     └── context-tracker/
         ├── context-tracker.js → symlink
         ├── *.template.json → symlinks
-        ├── issues.json (projektspezifisch)
-        ├── prs.json (projektspezifisch)
+        ├── issues.json (project-specific)
+        ├── prs.json (project-specific)
         └── ...
 ```
 
-## 🎯 Beispiel-Workflow
+## 🎯 Example Workflow
 
 ```bash
-# 1. Projekt verbinden
-cn -c ~/Code/mein-projekt
+# 1. Connect project
+cn -c ~/Code/my-project
 
-# 2. Ins Projekt wechseln
-cd ~/Code/mein-projekt
+# 2. Switch to project
+cd ~/Code/my-project
 
-# 3. Status checken
+# 3. Check status
 npm run context
 
-# 4. JSON-Dateien mit echten Daten füllen
+# 4. Fill JSON files with real data
 vim tools/context-tracker/issues.json
 
-# 5. Wieder Status checken
+# 5. Check status again
 npm run context
 ```
 
 ## 🔄 Updates
 
-Wenn das Tool verbessert wird, erhalten alle verbundenen Projekte automatisch die Updates, da sie via Symlinks verbunden sind!
+When the tool is improved, all connected projects automatically receive the updates as they are connected via symlinks!
 
-## 📝 JSON-Dateien pflegen
+## 📝 Maintaining JSON Files
 
 ### issues.json
 ```json
 [
   {
     "id": "#123",
-    "title": "Feature implementieren",
+    "title": "Implement feature",
     "status": "open",
     "priority": "high",
     "labels": ["feature", "frontend"]
@@ -200,81 +202,81 @@ Wenn das Tool verbessert wird, erhalten alle verbundenen Projekte automatisch di
 ]
 ```
 
-### issue-relations.json (für intelligente Empfehlungen)
+### issue-relations.json (for smart recommendations)
 ```json
 {
   "#100": {
     "type": "epic",
     "includes": ["#101", "#102", "#103"],
-    "description": "Epic beinhaltet diese Issues"
+    "description": "Epic includes these issues"
   }
 }
 ```
 
-## 🤝 Team-Kollaboration
+## 🤝 Team Collaboration
 
-Das Tool unterstützt Entwickler-Übergaben:
+The tool supports developer handovers:
 
 ```bash
-# In deinem Projekt:
+# In your project:
 npm run context:handover
 
-# Zeigt:
+# Shows:
 # - Uncommitted Changes
-# - Letzter Commit
-# - Unfertige Arbeit
-# - Nächste Schritte
+# - Last Commit
+# - Unfinished Work
+# - Next Steps
 ```
 
-## 📌 Tipps
+## 📌 Tips
 
-- **Täglich aktualisieren**: `github-branches.json` mit echten GitHub-Daten
-- **Issues pflegen**: Halte `issues.json` aktuell
-- **Relations nutzen**: Definiere EPICs und Bug-Beziehungen
-- **Symlinks behalten**: Lösche nie die Symlinks, nur die JSON-Daten sind projektspezifisch
+- **Update daily**: `github-branches.json` with real GitHub data
+- **Maintain issues**: Keep `issues.json` up to date
+- **Use relations**: Define EPICs and bug relationships
+- **Keep symlinks**: Never delete the symlinks, only the JSON data is project-specific
 
 ## 🤝 Contributing
 
-### Git-Provider Testing
-Wir suchen Tester für andere Git-Provider! Wenn du Context-Now mit GitLab, Bitbucket oder anderen Providern testest:
+### Git Provider Testing
+We're looking for testers for other Git providers! If you test Context-Now with GitLab, Bitbucket or other providers:
 
-1. Fork das Repository
-2. Teste die Funktionalität mit deinem Provider
-3. Dokumentiere was funktioniert/nicht funktioniert
-4. Erstelle einen Pull Request oder Issue mit deinen Ergebnissen
+1. Fork the repository
+2. Test functionality with your provider
+3. Document what works/doesn't work
+4. Create a Pull Request or Issue with your results
 
-### Entwicklung
+### Development
 ```bash
-# Repository forken und klonen
-git clone https://github.com/[dein-username]/context-now.git
+# Fork and clone repository
+git clone https://github.com/[your-username]/context-now.git
 cd context-now
 
-# Feature-Branch erstellen
+# Create feature branch
 git checkout -b feature/gitlab-support
 
-# Änderungen committen
+# Commit changes
 git commit -m "Add GitLab support"
 
-# Pull Request erstellen
+# Create Pull Request
 ```
 
 ### Issue Reports
-Bei Problemen bitte ein [Issue](https://github.com/GaboCapo/context-now/issues) mit folgenden Infos erstellen:
-- Git-Provider (GitHub, GitLab, etc.)
-- Shell-Type (bash, zsh, fish)
-- Fehlermeldung
+For problems, please create an [Issue](https://github.com/GaboCapo/context-now/issues) with the following info:
+- Git provider (GitHub, GitLab, etc.)
+- Shell type (bash, zsh, fish)
+- Error message
 - Steps to reproduce
 
-## 📚 Weitere Dokumentation
+## 📚 Further Documentation
 
-- [**INSTALLATION_COMPLETE.md**](INSTALLATION_COMPLETE.md) - Ausführliche Installationsanleitung
-- [**INSTALLATION.md**](INSTALLATION.md) - Projekt-Setup Guide  
-- [**GITHUB_TOKEN.md**](GITHUB_TOKEN.md) - GitHub Token einrichten
-- [**SSH_DEPLOY_KEYS.md**](SSH_DEPLOY_KEYS.md) - SSH Deploy Keys Setup
-- [**tools/context-tracker/DATA_SOURCES.md**](tools/context-tracker/DATA_SOURCES.md) - Datenquellen-Dokumentation
+- [**INSTALLATION_COMPLETE.md**](INSTALLATION_COMPLETE.md) - Detailed installation guide
+- [**INSTALLATION.md**](INSTALLATION.md) - Project setup guide
+- [**GITHUB_TOKEN.md**](GITHUB_TOKEN.md) - Setting up GitHub token
+- [**SSH_DEPLOY_KEYS.md**](SSH_DEPLOY_KEYS.md) - SSH Deploy Keys setup
+- [**tools/context-tracker/DATA_SOURCES.md**](tools/context-tracker/DATA_SOURCES.md) - Data sources documentation
 
 ---
 
 **Version**: 2.0.0  
-**Lizenz**: MIT  
+**License**: MIT  
 **Maintainer**: GaboCapo
