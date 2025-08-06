@@ -1,0 +1,9 @@
+{
+  "projects": [],
+  "settings": {
+    "defaultEditor": "code",
+    "autoSync": true,
+    "colorOutput": true,
+    "maxRecentProjects": 10
+  }
+}
