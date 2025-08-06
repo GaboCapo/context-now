@@ -1,5 +1,8 @@
 #!/bin/bash
 # Context-Now Launcher Script
 
-# Führe context-now.js mit den übergebenen Argumenten aus
-node /home/commander/Code/context-now/context-now.js "$@"
+# Find the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Execute context-now.js with passed arguments
+node "$SCRIPT_DIR/context-now.js" "$@"

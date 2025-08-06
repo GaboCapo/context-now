@@ -170,9 +170,15 @@ install_context_now() {
     if [ -f "$CURRENT_DIR/context-now.js" ]; then
         print_message "$CYAN" "Installing from local directory..."
         cp -r "$CURRENT_DIR"/* "$INSTALL_DIR/"
+        # Fix the cn script to use correct path
+        sed -i "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$INSTALL_DIR\"|g" "$INSTALL_DIR/cn" 2>/dev/null || \
+        sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$INSTALL_DIR\"|g" "$INSTALL_DIR/cn" 2>/dev/null || true
     else
         print_message "$CYAN" "Cloning from repository..."
-        git clone https://github.com/yourusername/context-now.git "$INSTALL_DIR"
+        git clone https://github.com/GaboCapo/context-now.git "$INSTALL_DIR"
+        # Fix the cn script to use correct path
+        sed -i "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$INSTALL_DIR\"|g" "$INSTALL_DIR/cn" 2>/dev/null || \
+        sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$INSTALL_DIR\"|g" "$INSTALL_DIR/cn" 2>/dev/null || true
     fi
     
     print_success "Context-Now installed to $INSTALL_DIR"
