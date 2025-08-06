@@ -1,4 +1,6 @@
-<img width="256" height="256" alt="Image" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
+<p align="center">
+  <img width="256" height="256" alt="Context-Now Logo" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
+</p>
 
 # 🎯 Context-Now - Multi-Projekt Management Tool
 
