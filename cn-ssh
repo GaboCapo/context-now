@@ -1,0 +1,5 @@
+#!/bin/bash
+# Context-Now SSH Deploy Key Setup
+
+# Führe das SSH-Setup aus
+node /home/commander/Code/context-now/tools/context-tracker/context-tracker-ssh.js "$@"

@@ -486,34 +486,35 @@ async function showStatus() {
     
     let recommendationCount = 1;
     
-    // PRIORITÄT 1: Gemergte Branches löschen (Aufräumen hat Vorrang!)
-    if (branches.merged.length > 0) {
-        console.log(`${colors.green}${recommendationCount}. 🧹 Gemergte Branches löschen (${branches.merged.length} Branches):${colors.reset}`);
-        console.log(`   ${colors.cyan}→ npm run context:cleanup${colors.reset} (zum Prüfen)`);
-        console.log(`   ${colors.cyan}→ npm run context:cleanup:force${colors.reset} (zum Löschen)`);
-        recommendationCount++;
-    }
-    
-    // PRIORITÄT 2: Uncommitted Changes
+    // Uncommitted Changes
     if (gitStatus.hasChanges) {
         console.log(`${colors.yellow}${recommendationCount}. Uncommitted Changes committen oder stashen${colors.reset}`);
         console.log(`   ${colors.cyan}→ git add . && git commit -m "WIP"${colors.reset}`);
-        console.log(`   ${colors.dim}oder: git stash${colors.reset}`);
         recommendationCount++;
     }
     
-    // PRIORITÄT 3: Neue Branches pushen
-    if (branches.newLocal.length > 0) {
-        const unpushed = branches.newLocal[0];
-        console.log(`${colors.yellow}${recommendationCount}. Neuen Branch zu GitHub pushen:${colors.reset}`);
-        console.log(`   ${colors.cyan}→ git push --set-upstream origin ${unpushed}${colors.reset}`);
-        if (branches.newLocal.length > 1) {
-            console.log(`   ${colors.dim}(und ${branches.newLocal.length - 1} weitere Branches)${colors.reset}`);
+    // Gemergte Branches löschen
+    if (branches.merged.length > 0) {
+        console.log(`${colors.green}${recommendationCount}. Gemergte Branches löschen (${branches.merged.length} Branches):${colors.reset}`);
+        if (branches.merged.length <= 3) {
+            branches.merged.forEach(b => {
+                console.log(`   ${colors.cyan}→ git branch -d ${b}${colors.reset}`);
+            });
+        } else {
+            console.log(`   ${colors.cyan}→ git branch --merged | grep -v "main\\|develop" | xargs git branch -d${colors.reset}`);
         }
         recommendationCount++;
     }
     
-    // PRIORITÄT 4: Wahrscheinlich geschlossene Branches prüfen
+    // Neue Branches pushen
+    if (branches.newLocal.length > 0) {
+        const unpushed = branches.newLocal[0];
+        console.log(`${colors.yellow}${recommendationCount}. Neuen Branch zu GitHub pushen:${colors.reset}`);
+        console.log(`   ${colors.cyan}→ git push --set-upstream origin ${unpushed}${colors.reset}`);
+        recommendationCount++;
+    }
+    
+    // Wahrscheinlich geschlossene Branches prüfen
     if (branches.likelyClosed.length > 0) {
         console.log(`${colors.dim}${recommendationCount}. Geschlossene Branches prüfen und ggf. löschen:${colors.reset}`);
         console.log(`   ${colors.cyan}→ git branch -D ${branches.likelyClosed[0]}${colors.reset}`);
@@ -521,7 +522,7 @@ async function showStatus() {
         recommendationCount++;
     }
     
-    // PRIORITÄT 5: Aktuelles Issue
+    // Aktuelles Issue
     if (currentBranchData?.issue) {
         const issue = issues.find(i => i.id === currentBranchData.issue);
         if (issue) {
@@ -578,8 +579,7 @@ async function cleanupBranches(dryRun = true) {
     
     if (dryRun && (branches.merged.length > 0 || branches.likelyClosed.length > 0)) {
         console.log(`\n${colors.cyan}Zum tatsächlichen Löschen:${colors.reset}`);
-        console.log(`  → npm run context:cleanup:force`);
-        console.log(`  → oder: node context-tracker.js cleanup --force`);
+        console.log(`  → node context-tracker-v2.js cleanup --force`);
     }
 }
 

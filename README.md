@@ -12,20 +12,25 @@ Ein intelligentes Tool zur zentralen Verwaltung von Projekt-Kontexten, Issues, B
 
 ## 🚀 Installation
 
-### 1. Repository klonen
+### Schnellinstallation (Empfohlen) 
 ```bash
-git clone <repository-url> ~/Code/context-now
-cd ~/Code/context-now
+# Ein-Befehl-Installation
+curl -sSL https://raw.githubusercontent.com/yourusername/context-now/main/quick-setup.sh | bash
+
+# Oder mit git clone + Installer
+git clone https://github.com/yourusername/context-now.git ~/Code/context-now
+cd ~/Code/context-now && ./install.sh
 ```
 
-### 2. Alias einrichten (optional)
-```bash
-# Füge zu ~/.bashrc oder ~/.zshrc hinzu:
-alias cn="/home/commander/Code/context-now/cn"
+### Was wird installiert?
+- ✅ Context-Now in `~/.context-now`
+- ✅ Konfiguration in `~/.config/context-now`  
+- ✅ Aliase: `cn`, `kontext`, `context`
+- ✅ Auto-Completion für bash/zsh
+- ✅ Environment-Variablen
+- ✅ Hilfs-Funktionen (cn-update, cn-backup, cn-edit)
 
-# Oder direkt ausführbar machen:
-chmod +x ~/Code/context-now/cn
-```
+Siehe [INSTALLATION_COMPLETE.md](INSTALLATION_COMPLETE.md) für alle Optionen.
 
 ## 📋 Verwendung
 
