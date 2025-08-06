@@ -26,13 +26,18 @@ if ! command -v node &> /dev/null; then
 fi
 
 # Clone und installiere
-echo "📦 Installiere Context-Now..."
-git clone https://github.com/GaboCapo/context-now.git ~/Code/context-now 2>/dev/null || {
-    echo "Repository existiert bereits, update..."
-    cd ~/Code/context-now && git pull
-}
+INSTALL_DIR="$HOME/Code/context-now"
 
-cd ~/Code/context-now
+if [ -d "$INSTALL_DIR" ]; then
+    echo "📦 Repository existiert bereits, update..."
+    cd "$INSTALL_DIR" && git pull
+else
+    echo "📦 Installiere Context-Now..."
+    mkdir -p "$HOME/Code"
+    git clone https://github.com/GaboCapo/context-now.git "$INSTALL_DIR"
+fi
+
+cd "$INSTALL_DIR"
 
 # Führe Installer aus
 if [ -f "./install.sh" ]; then
@@ -48,7 +53,7 @@ echo "✅ Installation abgeschlossen!"
 echo ""
 echo "Nächste Schritte:"
 echo "1. Terminal neu starten oder: source ~/.bashrc"
-echo "2. Erstes Projekt verbinden: cn -c /pfad/zu/projekt"
+echo "2. Erstes Projekt verbinden: cn -c /pfad/zu/projekt"  
 echo "3. Status prüfen: cn -s"
 echo ""
 echo "Viel Erfolg mit Context-Now! 🎯"
