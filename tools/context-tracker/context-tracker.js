@@ -423,13 +423,13 @@ async function showStatus() {
     // Statistiken
     console.log(`\n${colors.bright}📌 Status:${colors.reset}`);
     const openIssues = issues.filter(i => i.status !== 'closed').length;
-    const criticalIssues = issues.filter(i => i.priority === 'critical').length;
-    const openPRs = prs.filter(pr => pr.status === 'open').length;
+    const criticalIssuesCount = issues.filter(i => i.priority === 'critical').length;
+    const openPRsCount = prs.filter(pr => pr.status === 'open').length;
     
-    console.log(`- ${openIssues} offene Issues (davon ${colors.red}${criticalIssues} kritisch${colors.reset})`);
+    console.log(`- ${openIssues} offene Issues (davon ${colors.red}${criticalIssuesCount} kritisch${colors.reset})`);
     console.log(`- ${colors.cyan}${branches.active.length}${colors.reset} aktive Branches (${branches.all.length} total)`);
     console.log(`  └─ ${branches.local.length} lokal, ${colors.green}${branches.remote.length} auf GitHub${colors.reset}`);
-    console.log(`- ${openPRs} offene Pull Requests`);
+    console.log(`- ${openPRsCount} offene Pull Requests`);
     
     // Branch-Synchronisation mit Details
     if (branches.localOnly.length > 0 || branches.remoteOnly.length > 0) {
@@ -481,7 +481,7 @@ async function showStatus() {
     }
     
     // Kritische Issues
-    if (criticalIssues > 0) {
+    if (criticalIssuesCount > 0) {
         console.log(`\n${colors.red}🚨 Kritische offene Issues:${colors.reset}`);
         issues.filter(i => i.priority === 'critical' && i.status !== 'closed')
               .slice(0, 5)
@@ -494,7 +494,7 @@ async function showStatus() {
     // Branch-Beziehungen
     console.log(`\n${colors.bright}🔗 Branch-Issue Verknüpfungen:${colors.reset}`);
     
-    // Aktuelle Branch-Beziehung
+    // Aktuelle Branch-Beziehung (wird auch später in Empfehlungen verwendet)
     const currentBranchData = memory[currentBranch];
     if (currentBranchData?.issue) {
         const issue = issues.find(i => i.id === currentBranchData.issue);
@@ -526,47 +526,107 @@ async function showStatus() {
     
     let recommendationCount = 1;
     
-    // PRIORITÄT 1: Gemergte Branches löschen (Aufräumen hat Vorrang!)
-    if (branches.merged.length > 0) {
-        console.log(`${colors.green}${recommendationCount}. 🧹 Gemergte Branches löschen (${branches.merged.length} Branches):${colors.reset}`);
-        console.log(`   ${colors.cyan}→ npm run context:cleanup${colors.reset} (zum Prüfen)`);
-        console.log(`   ${colors.cyan}→ npm run context:cleanup:force${colors.reset} (zum Löschen)`);
-        recommendationCount++;
-    }
-    
-    // PRIORITÄT 2: Uncommitted Changes
+    // KRITISCH: Uncommitted Changes haben oberste Priorität
     if (gitStatus.hasChanges) {
-        console.log(`${colors.yellow}${recommendationCount}. Uncommitted Changes committen oder stashen${colors.reset}`);
-        console.log(`   ${colors.cyan}→ git add . && git commit -m "WIP"${colors.reset}`);
-        console.log(`   ${colors.dim}oder: git stash${colors.reset}`);
+        console.log(`${colors.red}${recommendationCount}. ZUERST: Uncommitted Changes committen oder stashen${colors.reset}`);
+        console.log(`   ${colors.cyan}→ git add . && git commit -m "WIP: ${currentBranch}"${colors.reset}`);
+        console.log(`   ${colors.dim}oder: git stash push -m "WIP ${new Date().toISOString()}"${colors.reset}`);
         recommendationCount++;
     }
     
-    // PRIORITÄT 3: Neue Branches pushen
-    if (branches.newLocal.length > 0) {
-        const unpushed = branches.newLocal[0];
-        console.log(`${colors.yellow}${recommendationCount}. Neuen Branch zu GitHub pushen:${colors.reset}`);
-        console.log(`   ${colors.cyan}→ git push --set-upstream origin ${unpushed}${colors.reset}`);
-        if (branches.newLocal.length > 1) {
-            console.log(`   ${colors.dim}(und ${branches.newLocal.length - 1} weitere Branches)${colors.reset}`);
+    // PRIORITÄT 2: Repository synchronisieren
+    if (gitStatus.behind > 0 || gitStatus.ahead > 0 || branches.newLocal.length > 0) {
+        console.log(`${colors.yellow}${recommendationCount}. Repository synchronisieren:${colors.reset}`);
+        if (gitStatus.behind > 0) {
+            console.log(`   ${colors.cyan}→ git pull${colors.reset} (${gitStatus.behind} commits behind)`);
+        }
+        if (gitStatus.ahead > 0) {
+            console.log(`   ${colors.cyan}→ git push${colors.reset} (${gitStatus.ahead} commits ahead)`);
+        }
+        if (branches.newLocal.length > 0) {
+            const unpushed = branches.newLocal[0];
+            console.log(`   ${colors.cyan}→ git push --set-upstream origin ${unpushed}${colors.reset}`);
+            if (branches.newLocal.length > 1) {
+                console.log(`   ${colors.dim}(und ${branches.newLocal.length - 1} weitere neue Branches)${colors.reset}`);
+            }
         }
         recommendationCount++;
     }
     
-    // PRIORITÄT 4: Wahrscheinlich geschlossene Branches prüfen
-    if (branches.likelyClosed.length > 0) {
-        console.log(`${colors.dim}${recommendationCount}. Geschlossene Branches prüfen und ggf. löschen:${colors.reset}`);
-        console.log(`   ${colors.cyan}→ git branch -D ${branches.likelyClosed[0]}${colors.reset}`);
-        console.log(`   ${colors.dim}(Erst prüfen ob keine wichtigen Änderungen verloren gehen!)${colors.reset}`);
+    // PRIORITÄT 3: Kritische Issues
+    const criticalIssues = issues.filter(i => 
+        i.priority === 'critical' && 
+        i.status === 'open' &&
+        !Object.values(memory).some(m => m.issue === i.id)
+    );
+    
+    if (criticalIssues.length > 0) {
+        const issue = criticalIssues[0];
+        console.log(`${colors.red}${recommendationCount}. KRITISCH: Arbeite an Issue #${issue.id}${colors.reset}`);
+        console.log(`   "${issue.title}"`);
+        console.log(`   ${colors.cyan}→ git checkout -b feature/issue-${issue.id}${colors.reset}`);
         recommendationCount++;
     }
     
-    // PRIORITÄT 5: Aktuelles Issue
+    // PRIORITÄT 4: Aktuelles Issue/Branch weiterbearbeiten
     if (currentBranchData?.issue) {
         const issue = issues.find(i => i.id === currentBranchData.issue);
         if (issue) {
-            console.log(`${recommendationCount}. Weiterarbeiten an Issue ${currentBranchData.issue}: "${issue.title}"`);
+            console.log(`${colors.green}${recommendationCount}. Weiterarbeiten an aktuellem Issue #${currentBranchData.issue}:${colors.reset}`);
+            console.log(`   "${issue.title}"`);
+            if (issue.status === 'in_progress') {
+                console.log(`   ${colors.dim}Status: In Bearbeitung${colors.reset}`);
+            }
+            recommendationCount++;
         }
+    } else if (currentBranch.startsWith('feature/') || currentBranch.startsWith('bugfix/')) {
+        // Branch ohne Issue-Verknüpfung
+        console.log(`${colors.yellow}${recommendationCount}. Branch "${currentBranch}" hat keine Issue-Verknüpfung${colors.reset}`);
+        console.log(`   ${colors.cyan}→ Erstelle ein Issue oder verknüpfe mit bestehendem${colors.reset}`);
+        recommendationCount++;
+    }
+    
+    // PRIORITÄT 5: Offene Pull Requests
+    const openPRs = prs.filter(pr => pr.status === 'open');
+    if (openPRs.length > 0) {
+        const pr = openPRs[0];
+        console.log(`${colors.blue}${recommendationCount}. Pull Request #${pr.id} wartet auf Review:${colors.reset}`);
+        console.log(`   "${pr.title}"`);
+        if (pr.needsWork) {
+            console.log(`   ${colors.yellow}→ Änderungen angefordert - bearbeiten!${colors.reset}`);
+        } else {
+            console.log(`   ${colors.cyan}→ Review anfordern oder mergen${colors.reset}`);
+        }
+        recommendationCount++;
+    }
+    
+    // PRIORITÄT 6: High Priority Issues
+    const highPriorityIssues = issues.filter(i => 
+        i.priority === 'high' && 
+        i.status === 'open' &&
+        !Object.values(memory).some(m => m.issue === i.id)
+    );
+    
+    if (highPriorityIssues.length > 0 && recommendationCount <= 5) {
+        const issue = highPriorityIssues[0];
+        console.log(`${colors.yellow}${recommendationCount}. Als nächstes: Issue #${issue.id} (High Priority)${colors.reset}`);
+        console.log(`   "${issue.title}"`);
+        console.log(`   ${colors.cyan}→ git checkout -b feature/issue-${issue.id}${colors.reset}`);
+        recommendationCount++;
+    }
+    
+    // PRIORITÄT 7: Branch Cleanup
+    if (branches.merged.length > 3) {
+        console.log(`${colors.dim}${recommendationCount}. Branch-Cleanup empfohlen (${branches.merged.length} gemergte Branches):${colors.reset}`);
+        console.log(`   ${colors.cyan}→ npm run context:cleanup${colors.reset}`);
+        recommendationCount++;
+    }
+    
+    // Kontext-Zusammenfassung
+    if (recommendationCount === 1) {
+        console.log(`${colors.green}1. Alles im grünen Bereich! 🎉${colors.reset}`);
+        console.log(`   Wähle das nächste Issue aus dem Backlog`);
+        console.log(`   ${colors.cyan}→ gh issue list --state open${colors.reset}`);
     }
     
     console.log('');
