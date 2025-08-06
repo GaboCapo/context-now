@@ -1,6 +1,6 @@
 *[Deutsch](README.de.md) | English*
 
-> For detailed documentation, please visit our [**docs folder**](./docs/index.md).
+> For detailed documentation, please visit our [**docs folder**](./docs/en/index.md).
 
 <p align="center">
   <img width="256" height="256" alt="Context-Now Logo" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
@@ -277,7 +277,7 @@ For problems, please create an [Issue](https://github.com/GaboCapo/context-now/i
 
 ## 📚 Further Documentation
 
-For a comprehensive guide, please see the [**Full Documentation**](./docs/index.md).
+For a comprehensive guide, please see the [**Full Documentation**](./docs/en/index.md).
 
 Key documents include:
 - [**INSTALLATION_COMPLETE.md**](INSTALLATION_COMPLETE.md) - Overview of all installed components.
