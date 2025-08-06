@@ -809,12 +809,12 @@ async function showStatus() {
     // ERWEITERTE EMPFEHLUNGEN
     console.log(`\n${colors.bright}✅ Empfehlungen:${colors.reset}`);
     
-    // Prüfe ob erweiterte Analyse verfügbar ist
-    const useAdvanced = process.argv.includes('--advanced') || process.argv.includes('-a');
+    // Prüfe ob EINFACHE Analyse gewünscht ist (Standard ist erweitert)
+    const useSimple = process.argv.includes('--simple') || process.argv.includes('-s') || process.argv.includes('--basic');
     
-    if (useAdvanced) {
-        // ERWEITERTE ANALYSE MIT NEUEN MODULEN
-        console.log(`${colors.dim}Verwende erweiterte Analyse...${colors.reset}\n`);
+    if (!useSimple) {
+        // ERWEITERTE ANALYSE MIT NEUEN MODULEN (STANDARD)
+        console.log(`${colors.dim}Analysiere Branch-Situation...${colors.reset}\n`);
         
         const advancedResults = analyzer.runAdvancedAnalysis(
             localBranches,
@@ -846,7 +846,8 @@ async function showStatus() {
             console.log(colors.reset);
         }
     } else {
-        // STANDARD-EMPFEHLUNGEN (bestehender Code)
+        // EINFACHE/BASIC EMPFEHLUNGEN (nur wenn explizit gewünscht)
+        console.log(`${colors.dim}Verwende vereinfachte Ansicht...${colors.reset}\n`);
         // Generiere Empfehlungen mit dem Analyzer
         const recommendations = analyzer.generateRecommendations(relations, unassignedIssues, currentBranch);
         
@@ -985,7 +986,7 @@ async function showStatus() {
             console.log(`   Wähle das nächste Issue aus dem Backlog`);
             console.log(`   ${colors.cyan}→ gh issue list --state open --label "ready"${colors.reset}`);
         }
-    } // Ende des else-Blocks für Standard-Empfehlungen
+    } // Ende des else-Blocks für einfache Empfehlungen
     
     console.log('');
 }
@@ -1178,13 +1179,21 @@ const args = process.argv.slice(3);
 
 switch (command) {
     case 'status':
+        // Standard ist jetzt erweiterte Analyse
+        showStatus();
+        break;
+    
+    case 'simple':
+    case 'basic':
+    case 'status:simple':
+        // Füge --simple Flag hinzu für einfache Analyse
+        process.argv.push('--simple');
         showStatus();
         break;
     
     case 'advanced':
     case 'status:advanced':
-        // Füge --advanced Flag hinzu für erweiterte Analyse
-        process.argv.push('--advanced');
+        // Für Rückwärtskompatibilität - macht jetzt dasselbe wie status
         showStatus();
         break;
     
@@ -1219,8 +1228,8 @@ switch (command) {
     default:
         console.log(`${colors.red}Unbekannter Befehl: ${command}${colors.reset}`);
         console.log('\nVerfügbare Befehle:');
-        console.log('  status            - Zeigt Projekt-Status und Empfehlungen');
-        console.log('  advanced          - Erweiterte Analyse mit allen Details');
+        console.log('  status            - Zeigt erweiterte Analyse mit allen Details (Standard)');
+        console.log('  simple            - Zeigt vereinfachte Basis-Empfehlungen');
         console.log('  sync              - Synchronisiert Repository mit Remote');
         console.log('  update            - Sync + Status kombiniert');
         console.log('  link [branch]     - Verknüpft Branch mit Issue (interaktiv)');
@@ -1228,5 +1237,6 @@ switch (command) {
         console.log('  cleanup           - Zeigt zu löschende Branches (dry-run)');
         console.log('  cleanup:force     - Löscht merged/geschlossene Branches');
         console.log('\nFlags:');
-        console.log('  --advanced, -a    - Aktiviert erweiterte Analyse');
+        console.log('  --simple, -s      - Aktiviert vereinfachte Ansicht');
+        console.log('  --basic           - Alias für --simple');
 }

@@ -8,7 +8,8 @@
   },
   "scripts": {
     "context": "node tools/context-tracker/context-tracker.js status",
-    "context:advanced": "node tools/context-tracker/context-tracker.js advanced",
+    "context:simple": "node tools/context-tracker/context-tracker.js simple",
+    "context:basic": "node tools/context-tracker/context-tracker.js simple",
     "install-global": "npm link",
     "uninstall-global": "npm unlink"
   },
