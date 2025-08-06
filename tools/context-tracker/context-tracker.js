@@ -809,10 +809,48 @@ async function showStatus() {
     // ERWEITERTE EMPFEHLUNGEN
     console.log(`\n${colors.bright}✅ Empfehlungen:${colors.reset}`);
     
-    // Generiere Empfehlungen mit dem Analyzer
-    const recommendations = analyzer.generateRecommendations(relations, unassignedIssues, currentBranch);
+    // Prüfe ob erweiterte Analyse verfügbar ist
+    const useAdvanced = process.argv.includes('--advanced') || process.argv.includes('-a');
     
-    let recommendationCount = 1;
+    if (useAdvanced) {
+        // ERWEITERTE ANALYSE MIT NEUEN MODULEN
+        console.log(`${colors.dim}Verwende erweiterte Analyse...${colors.reset}\n`);
+        
+        const advancedResults = analyzer.runAdvancedAnalysis(
+            localBranches,
+            issues,
+            memory,
+            currentBranch
+        );
+        
+        // Zeige erweiterte Empfehlungen
+        if (advancedResults.hasAdvancedIssues) {
+            console.log(advancedResults.recommendations);
+        } else {
+            console.log(`${colors.green}✅ Keine kritischen Probleme gefunden!${colors.reset}`);
+        }
+        
+        // Zeige Statistiken
+        const stats = advancedResults.advanced.statistics;
+        if (stats && (stats.staleCount > 0 || stats.orphanedCount > 0)) {
+            console.log(`\n${colors.dim}Statistiken:`);
+            if (stats.staleCount > 0) {
+                console.log(`  • ${stats.staleCount} veraltete Branches`);
+            }
+            if (stats.orphanedCount > 0) {
+                console.log(`  • ${stats.orphanedCount} verwaiste Branches`);
+            }
+            if (stats.criticalIssues > 0) {
+                console.log(`  • ${colors.red}${stats.criticalIssues} kritische Probleme${colors.dim}`);
+            }
+            console.log(colors.reset);
+        }
+    } else {
+        // STANDARD-EMPFEHLUNGEN (bestehender Code)
+        // Generiere Empfehlungen mit dem Analyzer
+        const recommendations = analyzer.generateRecommendations(relations, unassignedIssues, currentBranch);
+        
+        let recommendationCount = 1;
     
     // KRITISCH: Uncommitted Changes haben oberste Priorität
     if (gitStatus.hasChanges) {
@@ -941,12 +979,13 @@ async function showStatus() {
         }
     }
     
-    // Kontext-Zusammenfassung
-    if (recommendationCount === 1) {
-        console.log(`${colors.green}1. Alles im grünen Bereich! 🎉${colors.reset}`);
-        console.log(`   Wähle das nächste Issue aus dem Backlog`);
-        console.log(`   ${colors.cyan}→ gh issue list --state open --label "ready"${colors.reset}`);
-    }
+        // Kontext-Zusammenfassung
+        if (recommendationCount === 1) {
+            console.log(`${colors.green}1. Alles im grünen Bereich! 🎉${colors.reset}`);
+            console.log(`   Wähle das nächste Issue aus dem Backlog`);
+            console.log(`   ${colors.cyan}→ gh issue list --state open --label "ready"${colors.reset}`);
+        }
+    } // Ende des else-Blocks für Standard-Empfehlungen
     
     console.log('');
 }
@@ -1142,6 +1181,13 @@ switch (command) {
         showStatus();
         break;
     
+    case 'advanced':
+    case 'status:advanced':
+        // Füge --advanced Flag hinzu für erweiterte Analyse
+        process.argv.push('--advanced');
+        showStatus();
+        break;
+    
     case 'sync':
         syncRepository();
         break;
@@ -1174,10 +1220,13 @@ switch (command) {
         console.log(`${colors.red}Unbekannter Befehl: ${command}${colors.reset}`);
         console.log('\nVerfügbare Befehle:');
         console.log('  status            - Zeigt Projekt-Status und Empfehlungen');
+        console.log('  advanced          - Erweiterte Analyse mit allen Details');
         console.log('  sync              - Synchronisiert Repository mit Remote');
         console.log('  update            - Sync + Status kombiniert');
         console.log('  link [branch]     - Verknüpft Branch mit Issue (interaktiv)');
         console.log('  confirm-link      - Bestätigt automatisch erkannte Verknüpfung');
         console.log('  cleanup           - Zeigt zu löschende Branches (dry-run)');
         console.log('  cleanup:force     - Löscht merged/geschlossene Branches');
+        console.log('\nFlags:');
+        console.log('  --advanced, -a    - Aktiviert erweiterte Analyse');
 }

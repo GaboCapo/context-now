@@ -5,6 +5,9 @@
  * Analysiert und verwaltet Beziehungen zwischen Git-Branches und Issues
  */
 
+// Importiere erweiterte Module
+const advancedModules = require('./modules');
+
 const colors = {
     reset: '\x1b[0m',
     bright: '\x1b[1m',
@@ -218,10 +221,55 @@ function suggestBranchName(issue) {
     return `${prefix}/issue-${issue.id.replace('#', '')}-${title}`;
 }
 
+/**
+ * Führt erweiterte Analyse mit den neuen Modulen durch
+ */
+function runAdvancedAnalysis(branches, issues, memory, currentBranch) {
+    // Führe Standard-Analyse durch
+    const relations = analyzeBranchIssueRelations(branches, issues, memory);
+    
+    // Führe erweiterte Analyse durch
+    const advancedAnalysis = advancedModules.analyze({
+        branches,
+        issues,
+        currentBranch,
+        memory
+    });
+    
+    // Erweitere Duplikate-Analyse
+    if (relations.duplicates) {
+        const duplicatesArray = [];
+        Object.entries(relations.duplicates).forEach(([issueId, branches]) => {
+            if (branches.length > 1) {
+                duplicatesArray.push({ issueId, branches });
+            }
+        });
+        
+        if (duplicatesArray.length > 0) {
+            advancedAnalysis.duplicates = advancedModules.analyzer.analyzeDuplicateBranches(
+                relations.duplicates
+            );
+        }
+    }
+    
+    // Generiere erweiterte Empfehlungen
+    const recommendations = advancedModules.recommendations.processAnalysis(advancedAnalysis);
+    
+    return {
+        relations,
+        advanced: advancedAnalysis,
+        recommendations: recommendations.formatted,
+        hasAdvancedIssues: recommendations.hasCritical || 
+                           advancedAnalysis.staleBranches.length > 0 ||
+                           advancedAnalysis.orphanedBranches.length > 0
+    };
+}
+
 module.exports = {
     extractIssueFromBranchName,
     analyzeBranchIssueRelations,
     findUnassignedIssues,
     generateRecommendations,
-    suggestBranchName
+    suggestBranchName,
+    runAdvancedAnalysis  // Neue Funktion exportieren
 };
