@@ -306,17 +306,51 @@ function setupSSHKey() {
     
     // Prüfe ob SSH-Keys existieren
     const sshDir = path.join(os.homedir(), '.ssh');
-    const keyFiles = ['id_rsa', 'id_ed25519', 'id_ecdsa'];
     let foundKeys = [];
     
     console.log(`${colors.cyan}Suche vorhandene SSH-Keys...${colors.reset}`);
     
-    for (const keyFile of keyFiles) {
-        const keyPath = path.join(sshDir, keyFile);
-        const pubKeyPath = `${keyPath}.pub`;
-        if (fs.existsSync(keyPath) && fs.existsSync(pubKeyPath)) {
-            foundKeys.push(keyFile);
-            console.log(`  ${colors.green}✓${colors.reset} ${keyFile} gefunden`);
+    // Suche nach allen möglichen SSH-Keys im .ssh Verzeichnis
+    if (fs.existsSync(sshDir)) {
+        const files = fs.readdirSync(sshDir);
+        
+        // Suche nach Standard-Keys
+        const standardKeys = ['id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa'];
+        for (const keyFile of standardKeys) {
+            const keyPath = path.join(sshDir, keyFile);
+            const pubKeyPath = `${keyPath}.pub`;
+            if (fs.existsSync(keyPath) && fs.existsSync(pubKeyPath)) {
+                foundKeys.push({ name: keyFile, type: 'standard' });
+                console.log(`  ${colors.green}✓${colors.reset} ${keyFile} (Standard-Key)`);
+            }
+        }
+        
+        // Suche nach Deploy-Keys (alle Dateien die auf _deploy-key enden)
+        const deployKeys = files.filter(f => f.endsWith('_deploy-key') && !f.endsWith('.pub'));
+        for (const keyFile of deployKeys) {
+            const keyPath = path.join(sshDir, keyFile);
+            const pubKeyPath = `${keyPath}.pub`;
+            if (fs.existsSync(pubKeyPath)) {
+                foundKeys.push({ name: keyFile, type: 'deploy' });
+                const projectName = keyFile.replace('_deploy-key', '');
+                console.log(`  ${colors.green}✓${colors.reset} ${keyFile} (Deploy-Key für: ${colors.bright}${projectName}${colors.reset})`);
+            }
+        }
+        
+        // Suche nach anderen Keys (ohne .pub Endung und nicht in den obigen Kategorien)
+        const otherKeys = files.filter(f => 
+            !f.endsWith('.pub') && 
+            !standardKeys.includes(f) && 
+            !f.endsWith('_deploy-key') &&
+            !['config', 'known_hosts', 'known_hosts.old', 'authorized_keys'].includes(f)
+        );
+        for (const keyFile of otherKeys) {
+            const keyPath = path.join(sshDir, keyFile);
+            const pubKeyPath = `${keyPath}.pub`;
+            if (fs.existsSync(pubKeyPath)) {
+                foundKeys.push({ name: keyFile, type: 'other' });
+                console.log(`  ${colors.green}✓${colors.reset} ${keyFile} (Custom-Key)`);
+            }
         }
     }
     
@@ -337,22 +371,63 @@ function setupSSHKey() {
     
     // Teste SSH-Verbindung zu GitHub
     console.log(`\n${colors.cyan}Teste GitHub SSH-Verbindung...${colors.reset}`);
+    
+    // Prüfe ob SSH-Config existiert
+    const sshConfigPath = path.join(sshDir, 'config');
+    let hasSSHConfig = false;
+    let configuredHosts = [];
+    
+    if (fs.existsSync(sshConfigPath)) {
+        const configContent = fs.readFileSync(sshConfigPath, 'utf8');
+        const hostMatches = configContent.match(/Host\s+(github-[\w-]+)/g);
+        if (hostMatches) {
+            hasSSHConfig = true;
+            configuredHosts = hostMatches.map(h => h.replace('Host ', ''));
+            console.log(`  ${colors.green}✓${colors.reset} SSH-Config gefunden mit Hosts:`);
+            configuredHosts.forEach(host => {
+                console.log(`    - ${colors.bright}${host}${colors.reset}`);
+            });
+        }
+    }
+    
+    // Teste Verbindung
+    let connectionSuccess = false;
+    
+    // Teste mit Standard github.com
     try {
         const result = execSync('ssh -T git@github.com 2>&1', { encoding: 'utf8' });
-        console.log(`  ${colors.green}✓ SSH-Verbindung erfolgreich!${colors.reset}`);
+        console.log(`  ${colors.green}✓ SSH-Verbindung zu github.com erfolgreich!${colors.reset}`);
+        connectionSuccess = true;
     } catch (e) {
         // SSH gibt Exit Code 1 zurück, aber die Nachricht zeigt erfolgreiche Authentifizierung
         if (e.stdout && e.stdout.includes('successfully authenticated')) {
-            console.log(`  ${colors.green}✓ SSH-Verbindung erfolgreich!${colors.reset}`);
-        } else {
-            console.log(`  ${colors.yellow}⚠️  SSH-Verbindung fehlgeschlagen${colors.reset}`);
-            console.log(`\n${colors.cyan}Mögliche Lösungen:${colors.reset}`);
-            console.log(`  1. SSH-Agent starten: ${colors.bright}eval "$(ssh-agent -s)"${colors.reset}`);
-            console.log(`  2. Key hinzufügen: ${colors.bright}ssh-add ~/.ssh/${foundKeys[0]}${colors.reset}`);
-            console.log(`  3. Stelle sicher, dass der Key in GitHub hinterlegt ist`);
-            console.log(`     ${colors.blue}https://github.com/settings/keys${colors.reset}`);
-            return;
+            console.log(`  ${colors.green}✓ SSH-Verbindung zu github.com erfolgreich!${colors.reset}`);
+            connectionSuccess = true;
         }
+    }
+    
+    // Teste konfigurierte Hosts
+    for (const host of configuredHosts) {
+        try {
+            const result = execSync(`ssh -T git@${host} 2>&1`, { encoding: 'utf8' });
+            console.log(`  ${colors.green}✓ SSH-Verbindung zu ${host} erfolgreich!${colors.reset}`);
+            connectionSuccess = true;
+        } catch (e) {
+            if (e.stdout && e.stdout.includes('successfully authenticated')) {
+                console.log(`  ${colors.green}✓ SSH-Verbindung zu ${host} erfolgreich!${colors.reset}`);
+                connectionSuccess = true;
+            }
+        }
+    }
+    
+    if (!connectionSuccess) {
+        console.log(`  ${colors.yellow}⚠️  SSH-Verbindung fehlgeschlagen${colors.reset}`);
+        console.log(`\n${colors.cyan}Mögliche Lösungen:${colors.reset}`);
+        console.log(`  1. SSH-Agent starten: ${colors.bright}eval "$(ssh-agent -s)"${colors.reset}`);
+        console.log(`  2. Key hinzufügen: ${colors.bright}ssh-add ~/.ssh/${foundKeys[0].name}${colors.reset}`);
+        console.log(`  3. Stelle sicher, dass der Key in GitHub hinterlegt ist`);
+        console.log(`     ${colors.blue}https://github.com/settings/keys${colors.reset}`);
+        return;
     }
     
     // Konfiguriere Git für SSH
