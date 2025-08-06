@@ -216,7 +216,41 @@ function getLocalBranches() {
 
 // Remote Branches abrufen
 async function getRemoteBranches() {
-    // Option 1: SSH Deploy Key
+    // Option 1: Versuche git fetch für aktuelle Daten (wenn SSH konfiguriert)
+    try {
+        console.log(`${colors.cyan}  → Versuche git fetch für aktuelle Daten...${colors.reset}`);
+        
+        // Prüfe erst ob Remote konfiguriert ist
+        const remoteCheck = gitCommand('git remote -v', '');
+        if (!remoteCheck || !remoteCheck.includes('origin')) {
+            throw new Error('Kein Remote-Repository konfiguriert');
+        }
+        
+        // Versuche fetch - ignoriere stderr output
+        execSync('git fetch --all --prune 2>/dev/null', { encoding: 'utf8' });
+        
+        // Hole alle Remote-Branches
+        const remoteBranches = gitCommand('git branch -r', '');
+        if (remoteBranches) {
+            const branches = remoteBranches
+                .split('\n')
+                .filter(b => b.trim())
+                .map(b => b.trim().replace('origin/', ''))
+                .filter(b => !b.includes('HEAD'));
+            
+            if (branches.length > 0) {
+                console.log(`${colors.green}  ✓ ${branches.length} Branches via git fetch abgerufen${colors.reset}`);
+                // Speichere für Cache
+                fs.writeFileSync(GITHUB_BRANCHES_FILE, JSON.stringify(branches, null, 2));
+                return branches;
+            }
+        }
+    } catch (error) {
+        // Git fetch fehlgeschlagen, versuche andere Methoden
+        console.log(`${colors.dim}  → Git fetch fehlgeschlagen, versuche alternative Methoden...${colors.reset}`);
+    }
+    
+    // Option 2: SSH Deploy Key
     if (sshModule) {
         try {
             console.log(`${colors.cyan}  → Versuche SSH Deploy Key...${colors.reset}`);
