@@ -300,6 +300,78 @@ function showProjectStatus(projectName) {
     }
 }
 
+// SSH-Key einrichten und verbinden
+function setupSSHKey() {
+    console.log(`${colors.bright}🔐 SSH-Deploy-Key Einrichtung${colors.reset}\n`);
+    
+    // Prüfe ob SSH-Keys existieren
+    const sshDir = path.join(os.homedir(), '.ssh');
+    const keyFiles = ['id_rsa', 'id_ed25519', 'id_ecdsa'];
+    let foundKeys = [];
+    
+    console.log(`${colors.cyan}Suche vorhandene SSH-Keys...${colors.reset}`);
+    
+    for (const keyFile of keyFiles) {
+        const keyPath = path.join(sshDir, keyFile);
+        const pubKeyPath = `${keyPath}.pub`;
+        if (fs.existsSync(keyPath) && fs.existsSync(pubKeyPath)) {
+            foundKeys.push(keyFile);
+            console.log(`  ${colors.green}✓${colors.reset} ${keyFile} gefunden`);
+        }
+    }
+    
+    if (foundKeys.length === 0) {
+        console.log(`\n${colors.yellow}⚠️  Keine SSH-Keys gefunden!${colors.reset}`);
+        console.log(`\n${colors.cyan}SSH-Key erstellen:${colors.reset}`);
+        console.log(`  1. Führe aus: ${colors.bright}ssh-keygen -t ed25519 -C "deine-email@example.com"${colors.reset}`);
+        console.log(`  2. Folge den Anweisungen (Enter für Standardpfad)`);
+        console.log(`\n${colors.cyan}SSH-Key zu GitHub hinzufügen:${colors.reset}`);
+        console.log(`  1. Kopiere den Public Key: ${colors.bright}cat ~/.ssh/id_ed25519.pub${colors.reset}`);
+        console.log(`  2. Gehe zu: ${colors.blue}https://github.com/settings/keys${colors.reset}`);
+        console.log(`  3. Klicke auf "New SSH key"`);
+        console.log(`  4. Füge den kopierten Key ein`);
+        console.log(`\n${colors.cyan}Nach der Einrichtung:${colors.reset}`);
+        console.log(`  Führe erneut aus: ${colors.bright}cn -k${colors.reset}`);
+        return;
+    }
+    
+    // Teste SSH-Verbindung zu GitHub
+    console.log(`\n${colors.cyan}Teste GitHub SSH-Verbindung...${colors.reset}`);
+    try {
+        const result = execSync('ssh -T git@github.com 2>&1', { encoding: 'utf8' });
+        console.log(`  ${colors.green}✓ SSH-Verbindung erfolgreich!${colors.reset}`);
+    } catch (e) {
+        // SSH gibt Exit Code 1 zurück, aber die Nachricht zeigt erfolgreiche Authentifizierung
+        if (e.stdout && e.stdout.includes('successfully authenticated')) {
+            console.log(`  ${colors.green}✓ SSH-Verbindung erfolgreich!${colors.reset}`);
+        } else {
+            console.log(`  ${colors.yellow}⚠️  SSH-Verbindung fehlgeschlagen${colors.reset}`);
+            console.log(`\n${colors.cyan}Mögliche Lösungen:${colors.reset}`);
+            console.log(`  1. SSH-Agent starten: ${colors.bright}eval "$(ssh-agent -s)"${colors.reset}`);
+            console.log(`  2. Key hinzufügen: ${colors.bright}ssh-add ~/.ssh/${foundKeys[0]}${colors.reset}`);
+            console.log(`  3. Stelle sicher, dass der Key in GitHub hinterlegt ist`);
+            console.log(`     ${colors.blue}https://github.com/settings/keys${colors.reset}`);
+            return;
+        }
+    }
+    
+    // Konfiguriere Git für SSH
+    console.log(`\n${colors.cyan}Konfiguriere Git für SSH...${colors.reset}`);
+    try {
+        // Setze Git URL-Rewrite für automatische SSH-Nutzung
+        execSync('git config --global url."git@github.com:".insteadOf "https://github.com/"');
+        console.log(`  ${colors.green}✓ Git für SSH konfiguriert${colors.reset}`);
+        
+        console.log(`\n${colors.green}✅ SSH-Setup erfolgreich abgeschlossen!${colors.reset}`);
+        console.log(`\n${colors.cyan}Nächste Schritte:${colors.reset}`);
+        console.log(`  1. Verbinde dein Projekt: ${colors.bright}cn -c /pfad/zum/projekt${colors.reset}`);
+        console.log(`  2. Prüfe den Status: ${colors.bright}cn -s${colors.reset}`);
+        console.log(`\n${colors.dim}Alle zukünftigen Git-Operationen nutzen jetzt automatisch SSH.${colors.reset}`);
+    } catch (e) {
+        console.error(`${colors.red}Fehler bei Git-Konfiguration:${colors.reset}`, e.message);
+    }
+}
+
 // Hilfe anzeigen
 function showHelp() {
     console.log(`
@@ -311,6 +383,7 @@ ${colors.cyan}Verwendung:${colors.reset}
 
 ${colors.cyan}Optionen:${colors.reset}
   ${colors.green}-c, --connect <pfad>${colors.reset}     Projekt verbinden
+  ${colors.green}-k, --key${colors.reset}                SSH-Deploy-Key verbinden
   ${colors.green}-l, --list${colors.reset}               Alle Projekte auflisten
   ${colors.green}-g, --go <name|nummer>${colors.reset}   Zu Projekt wechseln
   ${colors.green}-d, --disconnect <name>${colors.reset}  Projekt trennen
@@ -318,6 +391,7 @@ ${colors.cyan}Optionen:${colors.reset}
   ${colors.green}-h, --help${colors.reset}               Diese Hilfe anzeigen
 
 ${colors.cyan}Beispiele:${colors.reset}
+  cn -k                                      # SSH-Key einrichten
   cn -c /home/user/mein-projekt             # Projekt verbinden
   cn -l                                      # Projekte auflisten
   cn -g 1                                    # Zu Projekt 1 wechseln
@@ -330,6 +404,10 @@ ${colors.cyan}NPM Scripts (in verbundenen Projekten):${colors.reset}
   npm run context-now                       # Status anzeigen
   npm run context-now:sync                  # Repository synchronisieren  
   npm run context-now:update                # Sync + Status
+
+${colors.yellow}⚠️  Bei privaten Repositories:${colors.reset}
+  1. Richte zuerst einen SSH-Key ein: ${colors.bright}cn -k${colors.reset}
+  2. Verbinde dann dein Projekt: cn -c /pfad/zum/projekt
 
 ${colors.dim}Context-Now verwaltet zentral alle deine Git-Projekt-Kontexte.${colors.reset}
 ${colors.dim}Dokumentation: https://github.com/GaboCapo/context-now${colors.reset}
@@ -356,6 +434,11 @@ switch (option) {
         } else {
             connectProject(argument);
         }
+        break;
+    
+    case '-k':
+    case '--key':
+        setupSSHKey();
         break;
         
     case '-l':

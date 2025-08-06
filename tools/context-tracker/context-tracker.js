@@ -188,7 +188,7 @@ function fetchGitHubBranches(owner, repo) {
                         reject(e);
                     }
                 } else if (res.statusCode === 404) {
-                    reject(new Error('Repository nicht gefunden oder privat (Token/SSH-Key erforderlich)'));
+                    reject(new Error('Repository nicht gefunden oder privat (SSH-Key erforderlich)\n  → Richte SSH-Key ein mit: cn -k'));
                 } else if (res.statusCode === 403) {
                     reject(new Error('GitHub API Rate Limit oder Zugriff verweigert'));
                 } else {
@@ -242,6 +242,11 @@ async function getRemoteBranches() {
             return branches;
         } catch (error) {
             console.log(`${colors.yellow}  ⚠️  GitHub API: ${error.message}${colors.reset}`);
+            if (error.message.includes('SSH-Key erforderlich')) {
+                console.log(`${colors.cyan}  💡 Empfehlung:${colors.reset}`);
+                console.log(`     1. Richte SSH-Key ein: ${colors.bright}cn -k${colors.reset}`);
+                console.log(`     2. Versuche es dann erneut`);
+            }
         }
     }
     
@@ -263,6 +268,7 @@ async function getRemoteBranches() {
     
     // Option 4: Git Remote (wahrscheinlich veraltet)
     console.log(`${colors.red}  ⚠️  Verwende lokalen Git-Cache (wahrscheinlich veraltet!)${colors.reset}`);
+    console.log(`${colors.cyan}  💡 Für private Repos: Richte SSH-Key ein mit${colors.reset} ${colors.bright}cn -k${colors.reset}`);
     const output = gitCommand('git branch -r', '');
     if (!output) return [];
     
