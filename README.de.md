@@ -85,10 +85,13 @@ cn -d persona-nexus-manager
 
 ## 🗑️ Deinstallation
 
-### Schnell-Deinstallation (Ein Befehl)
+### Schnell-Deinstallation (Empfohlen)
 ```bash
-# Komplette Deinstallation mit einem Befehl
-curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh | bash
+# Deinstaller herunterladen und interaktiv ausführen
+bash <(curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh)
+
+# Oder erst herunterladen, dann ausführen
+curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh -o uninstall.sh && bash uninstall.sh && rm uninstall.sh
 ```
 
 ### Alternative: Mit geklontem Repository

@@ -87,10 +87,13 @@ cn -d persona-nexus-manager
 
 ## 🗑️ Uninstallation
 
-### Quick Uninstallation (One command)
+### Quick Uninstallation (Recommended)
 ```bash
-# Complete uninstallation with one command
-curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh | bash
+# Download and run uninstaller interactively
+bash <(curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh)
+
+# Or download first, then run
+curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh -o uninstall.sh && bash uninstall.sh && rm uninstall.sh
 ```
 
 ### Alternative: With cloned repository
