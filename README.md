@@ -1,5 +1,7 @@
 *[Deutsch](README.de.md) | English*
 
+> For detailed documentation, please visit our [**docs folder**](./docs/en/index.md).
+
 <p align="center">
   <img width="256" height="256" alt="Context-Now Logo" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
 </p>
@@ -275,11 +277,11 @@ For problems, please create an [Issue](https://github.com/GaboCapo/context-now/i
 
 ## 📚 Further Documentation
 
-- [**INSTALLATION_COMPLETE.md**](INSTALLATION_COMPLETE.md) - Detailed installation guide
-- [**INSTALLATION.md**](INSTALLATION.md) - Project setup guide
-- [**GITHUB_TOKEN.md**](GITHUB_TOKEN.md) - Setting up GitHub token
-- [**SSH_DEPLOY_KEYS.md**](SSH_DEPLOY_KEYS.md) - SSH Deploy Keys setup
-- [**tools/context-tracker/DATA_SOURCES.md**](tools/context-tracker/DATA_SOURCES.md) - Data sources documentation
+For a comprehensive guide, please see the [**Full Documentation**](./docs/en/index.md).
+
+Key documents include:
+- [**INSTALLATION_COMPLETE.md**](INSTALLATION_COMPLETE.md) - Overview of all installed components.
+- [**Data Sources Documentation**](tools/context-tracker/DATA_SOURCES.md) - A deep dive into the tool's data.
 
 ---
 

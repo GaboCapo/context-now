@@ -163,3 +163,36 @@ cp prs.template.json prs.json
 # ... und so weiter für die anderen Vorlagen.
 ```
 Diese Methode erfordert manuelle Updates und ist deutlich umständlicher in der Handhabung.
+
+Hier sind die Schritte, wie sie in der alten Dokumentation beschrieben wurden:
+
+#### 1. Tool-Dateien kopieren
+```bash
+# In dein Projektverzeichnis wechseln
+cd /pfad/zu/deinem/projekt
+
+# Context-Tracker Tools kopieren
+cp -r /pfad/zu/context-now/tools .
+```
+
+#### 2. NPM Scripts hinzufügen
+Füge die folgenden Skripte zu deiner `package.json` hinzu:
+```json
+"scripts": {
+  "context": "node tools/context-tracker/context-tracker.js status",
+  "context:sync": "node tools/context-tracker/context-tracker.js sync",
+  "context:update": "node tools/context-tracker/context-tracker.js update"
+}
+```
+
+#### 3. Projekt-spezifische Dateien erstellen
+Erstelle die notwendigen JSON-Dateien im `tools/context-tracker`-Ordner, indem du die `.template.json`-Dateien kopierst.
+```bash
+cd tools/context-tracker
+cp issues.template.json issues.json
+cp prs.template.json prs.json
+cp project-memory.template.json project-memory.json
+echo '["main", "develop"]' > github-branches.json
+echo '{}' > issue-relations.json
+```
+Anschließend müssen diese Dateien mit den echten Projektdaten gefüllt werden.
