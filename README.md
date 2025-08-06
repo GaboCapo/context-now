@@ -67,6 +67,41 @@ cn -s persona-nexus-manager # Spezifisches Projekt
 cn -d persona-nexus-manager
 ```
 
+## 🗑️ Deinstallation
+
+### Schnell-Deinstallation (Ein Befehl)
+```bash
+# Komplette Deinstallation mit einem Befehl
+curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh | bash
+```
+
+### Alternative: Mit geklontem Repository
+```bash
+# Wenn Repository noch vorhanden
+~/Code/context-now/uninstall.sh
+
+# Oder mit dem Original-Installer
+~/Code/context-now/install.sh --uninstall
+```
+
+### Manuelle Deinstallation
+```bash
+# 1. Symlinks entfernen
+rm -f ~/.local/bin/cn ~/.local/bin/kontext ~/.local/bin/context
+
+# 2. Installation entfernen  
+rm -rf ~/.context-now
+
+# 3. Konfiguration entfernen (optional, enthält deine Projekt-Daten!)
+rm -rf ~/.config/context-now
+
+# 4. Fish-Funktionen entfernen (falls Fish genutzt)
+rm -f ~/.config/fish/functions/cn-*.fish
+
+# 5. Shell-Config bereinigen (manuell editieren)
+# Entferne Context-Now Zeilen aus ~/.bashrc, ~/.zshrc oder ~/.config/fish/config.fish
+```
+
 ## 🔧 Was passiert beim Verbinden?
 
 1. **Symlinks werden erstellt**:

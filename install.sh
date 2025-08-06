@@ -215,12 +215,8 @@ cn-backup() {
 }
 EOF
     
-    # Create Fish-specific configuration
-    if [ "$shell_type" = "fish" ]; then
-        mkdir -p "$HOME/.config/fish/functions"
-        
-        # Environment variables for Fish
-        cat > "$CONFIG_DIR/env.fish" << EOF
+    # ALWAYS create Fish configuration (even if not using Fish)
+    cat > "$CONFIG_DIR/env.fish" << EOF
 # Context-Now Environment Variables for Fish
 set -gx CONTEXT_NOW_HOME "$INSTALL_DIR"
 set -gx CONTEXT_NOW_CONFIG "$CONFIG_DIR"
@@ -232,16 +228,18 @@ alias cn '$INSTALL_DIR/cn'
 alias kontext '$INSTALL_DIR/cn'
 alias context '$INSTALL_DIR/cn'
 EOF
-        
-        # Functions for Fish
-        cat > "$HOME/.config/fish/functions/cn-update.fish" << EOF
+    
+    # Create Fish functions directory and functions
+    mkdir -p "$HOME/.config/fish/functions"
+    
+    cat > "$HOME/.config/fish/functions/cn-update.fish" << EOF
 function cn-update
     cd "$INSTALL_DIR" && git pull && cd - > /dev/null
     echo "Context-Now updated successfully!"
 end
 EOF
-        
-        cat > "$HOME/.config/fish/functions/cn-edit.fish" << EOF
+    
+    cat > "$HOME/.config/fish/functions/cn-edit.fish" << EOF
 function cn-edit
     if set -q EDITOR
         \$EDITOR "$CONFIG_DIR/projects.json"
@@ -250,18 +248,16 @@ function cn-edit
     end
 end
 EOF
-        
-        cat > "$HOME/.config/fish/functions/cn-backup.fish" << EOF
+    
+    cat > "$HOME/.config/fish/functions/cn-backup.fish" << EOF
 function cn-backup
     set backup_file "$CONFIG_DIR/backup_(date +%Y%m%d_%H%M%S).tar.gz"
     tar -czf "\$backup_file" -C "$CONFIG_DIR" .
     echo "Backup created: \$backup_file"
 end
 EOF
-        print_success "Fish-specific configuration created"
-    fi
     
-    print_success "Environment configuration created"
+    print_success "Environment configuration created for all shells"
 }
 
 # Create symlinks
@@ -385,7 +381,10 @@ complete -F _cn_complete cn
 complete -F _cn_complete kontext
 complete -F _cn_complete context
 EOF
-            echo "[ -f \"$CONFIG_DIR/completion.bash\" ] && source \"$CONFIG_DIR/completion.bash\"" >> $(get_shell_config)
+            # Add to shell config if not already there
+            if ! grep -q "completion.bash" $(get_shell_config) 2>/dev/null; then
+                echo "[ -f \"$CONFIG_DIR/completion.bash\" ] && source \"$CONFIG_DIR/completion.bash\"" >> $(get_shell_config)
+            fi
             print_success "Bash completion installed"
             ;;
             
@@ -412,8 +411,34 @@ compdef _cn_complete cn
 compdef _cn_complete kontext
 compdef _cn_complete context
 EOF
-            echo "[ -f \"$CONFIG_DIR/completion.zsh\" ] && source \"$CONFIG_DIR/completion.zsh\"" >> $(get_shell_config)
+            # Add to shell config if not already there
+            if ! grep -q "completion.zsh" $(get_shell_config) 2>/dev/null; then
+                echo "[ -f \"$CONFIG_DIR/completion.zsh\" ] && source \"$CONFIG_DIR/completion.zsh\"" >> $(get_shell_config)
+            fi
             print_success "Zsh completion installed"
+            ;;
+            
+        fish)
+            # Fish completions
+            mkdir -p "$HOME/.config/fish/completions"
+            cat > "$HOME/.config/fish/completions/cn.fish" << 'EOF'
+# Context-Now fish completion
+complete -c cn -f
+complete -c cn -a "status" -d "Show project status"
+complete -c cn -a "sync" -d "Sync with repository"
+complete -c cn -a "update" -d "Update context"
+complete -c cn -a "help" -d "Show help"
+complete -c cn -s c -l connect -d "Connect project"
+complete -c cn -s l -l list -d "List projects"
+complete -c cn -s g -l goto -d "Go to project"
+complete -c cn -s s -l status -d "Show status"
+complete -c cn -s h -l help -d "Show help"
+
+# Same for aliases
+complete -c kontext -w cn
+complete -c context -w cn
+EOF
+            print_success "Fish completion installed"
             ;;
             
         *)
@@ -530,9 +555,26 @@ main() {
     # Show summary
     show_summary
     
-    # Final message
-    print_message "$BOLD$GREEN" "\n✨ Installation successful! Please restart your shell or run:"
-    print_message "$CYAN" "   source $(get_shell_config)"
+    # Final message based on shell
+    local shell_type=$(detect_shell)
+    case "$shell_type" in
+        fish)
+            print_message "$BOLD$GREEN" "\n✨ Installation successful! Please restart your shell or run:"
+            print_message "$CYAN" "   source ~/.config/fish/config.fish"
+            ;;
+        zsh)
+            print_message "$BOLD$GREEN" "\n✨ Installation successful! Please restart your shell or run:"
+            print_message "$CYAN" "   source ~/.zshrc"
+            ;;
+        bash)
+            print_message "$BOLD$GREEN" "\n✨ Installation successful! Please restart your shell or run:"
+            print_message "$CYAN" "   source ~/.bashrc"
+            ;;
+        *)
+            print_message "$BOLD$GREEN" "\n✨ Installation successful! Please restart your shell or run:"
+            print_message "$CYAN" "   source $(get_shell_config)"
+            ;;
+    esac
 }
 
 # Run main function
