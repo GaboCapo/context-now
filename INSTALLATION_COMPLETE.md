@@ -200,6 +200,10 @@ npm install  # Falls neue Dependencies
 ### Automatisch (mit Installer)
 
 ```bash
+# Interaktiv ausführen (empfohlen)
+bash <(curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/uninstall.sh)
+
+# Oder lokal ausführen
 ~/Code/context-now/install.sh --uninstall
 ```
 
