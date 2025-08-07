@@ -964,9 +964,65 @@ async function showStatus() {
         
         // Zeige erweiterte Empfehlungen
         if (advancedResults.hasAdvancedIssues) {
-            console.log(advancedResults.recommendations);
+            // Zeige kritische Issues zuerst
+            if (advancedResults.criticalIssues && advancedResults.criticalIssues.length > 0) {
+                console.log(`${colors.red}🚨 ${advancedResults.criticalIssues.length} KRITISCHE Issues offen:${colors.reset}`);
+                advancedResults.criticalIssues.slice(0, 3).forEach(issue => {
+                    console.log(`   ${colors.red}●${colors.reset} ${issue.id || `#${issue.number}`}: ${issue.title}`);
+                    const suggestedBranch = `bugfix/critical-issue-${(issue.id || `#${issue.number}`).replace('#', '')}`;
+                    console.log(`     ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
+                });
+                console.log('');
+            }
+            
+            // Zeige high priority Issues
+            if (advancedResults.highPriorityIssues && advancedResults.highPriorityIssues.length > 0) {
+                console.log(`${colors.yellow}⚠️  ${advancedResults.highPriorityIssues.length} High Priority Issues:${colors.reset}`);
+                advancedResults.highPriorityIssues.slice(0, 2).forEach(issue => {
+                    console.log(`   ${colors.yellow}●${colors.reset} ${issue.id || `#${issue.number}`}: ${issue.title}`);
+                });
+                console.log('');
+            }
+            
+            // Zeige weitere Empfehlungen
+            if (advancedResults.recommendations && advancedResults.recommendations.length > 0) {
+                console.log(advancedResults.recommendations);
+            }
+            
+            // Zeige konkrete nächste Schritte
+            console.log(`${colors.bright}📋 Nächste Schritte:${colors.reset}`);
+            
+            // 1. Uncommitted Changes
+            if (gitStatus.hasChanges) {
+                console.log(`${colors.red}1. Uncommitted Changes sichern:${colors.reset}`);
+                console.log(`   ${colors.cyan}→ git stash push -m "WIP: ${currentBranch}"${colors.reset}`);
+            }
+            
+            // 2. Kritisches Issue bearbeiten
+            if (advancedResults.criticalIssues && advancedResults.criticalIssues.length > 0) {
+                const issue = advancedResults.criticalIssues[0];
+                console.log(`${colors.red}2. Kritisches Issue ${issue.id || `#${issue.number}`} sofort bearbeiten${colors.reset}`);
+                const suggestedBranch = `bugfix/critical-issue-${(issue.id || `#${issue.number}`).replace('#', '')}`;
+                console.log(`   ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
+            }
+            
+            // 3. Branch aufräumen
+            if (branches.remoteOnly.length > 10) {
+                console.log(`${colors.yellow}3. ${branches.remoteOnly.length} Remote-Branches lokal auschecken oder löschen${colors.reset}`);
+                console.log(`   ${colors.cyan}→ git remote prune origin${colors.reset}`);
+            }
         } else {
             console.log(`${colors.green}✅ Keine kritischen Probleme gefunden!${colors.reset}`);
+            
+            // Zeige trotzdem hilfreiche Empfehlungen
+            if (issues.length > 0) {
+                const openIssues = issues.filter(i => (i.status === 'open' || i.state === 'open'));
+                if (openIssues.length > 0) {
+                    console.log(`\n${colors.cyan}📋 ${openIssues.length} offene Issues vorhanden${colors.reset}`);
+                    console.log(`   ${colors.dim}→ Wähle das nächste Issue aus${colors.reset}`);
+                    console.log(`   ${colors.cyan}→ gh issue list --state open${colors.reset}`);
+                }
+            }
         }
         
         // Zeige Statistiken

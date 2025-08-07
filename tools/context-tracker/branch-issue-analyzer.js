@@ -255,13 +255,25 @@ function runAdvancedAnalysis(branches, issues, memory, currentBranch) {
     // Generiere erweiterte Empfehlungen
     const recommendations = advancedModules.recommendations.processAnalysis(advancedAnalysis);
     
+    // Prüfe auf kritische Issues
+    const criticalIssues = issues.filter(i => 
+        i.priority === 'critical' && (i.status === 'open' || i.state === 'open')
+    );
+    const highPriorityIssues = issues.filter(i => 
+        i.priority === 'high' && (i.status === 'open' || i.state === 'open')
+    );
+    
     return {
         relations,
         advanced: advancedAnalysis,
         recommendations: recommendations.formatted,
         hasAdvancedIssues: recommendations.hasCritical || 
                            advancedAnalysis.staleBranches.length > 0 ||
-                           advancedAnalysis.orphanedBranches.length > 0
+                           advancedAnalysis.orphanedBranches.length > 0 ||
+                           criticalIssues.length > 0 ||
+                           highPriorityIssues.length > 0,
+        criticalIssues,
+        highPriorityIssues
     };
 }
 
