@@ -60,6 +60,9 @@ cn -s mein-projekt
 In einem Projekt-Verzeichnis kannst du auch die `npm`-Skripte verwenden, falls eingerichtet:
 ```bash
 npm run context-now
+
+# WICHTIG: Der alte Befehl "npm run context" wurde zu "context-now" umbenannt!
+# Bei Fehler "Missing script: context" siehe: docs/MIGRATION.md
 ```
 
 ### Projekt trennen

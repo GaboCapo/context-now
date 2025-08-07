@@ -6,7 +6,9 @@
   <img width="256" height="256" alt="Context-Now Logo" src="https://github.com/user-attachments/assets/ed19b593-2d4f-4372-9ba0-2edb17ce0f52" />
 </p>
 
-⚠️ This project is still under active development. Some features may not work as expected, especially the recommendations generated at the end of the code.
+⚠️ **Breaking Change in v2.0.0**: `npm run context` has been renamed to `npm run context-now` to avoid namespace conflicts. See [Migration Guide](docs/MIGRATION.md) for details.
+
+⚠️ This project is still under active development. Some features may not work as expected.
 
 
 # 🎯 Context-Now - Git Project Context Tracker
@@ -41,6 +43,21 @@ An intelligent tool for managing Git project contexts, issues, branches and pull
 | Codeberg | 🟠 Not tested | Contributions welcome! |
 
 > **Note:** Context-Now has only been tested with GitHub so far. We welcome feedback and contributions for other Git providers! If you test it with another provider, let us know via [Issues](https://github.com/GaboCapo/context-now/issues).
+
+## 🔄 Migration from older versions
+
+If you get `npm error Missing script: "context"`, you need to update your npm scripts:
+
+```bash
+# Quick fix - update npm scripts for your project:
+cn --update-scripts <your-project-name>
+
+# Then use the new commands:
+npm run context-now        # (was: npm run context)
+npm run context-now:sync   # (was: npm run context:sync)
+```
+
+See [Migration Guide](docs/MIGRATION.md) for full details.
 
 ## 🚀 Installation
 

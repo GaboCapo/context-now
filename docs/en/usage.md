@@ -60,6 +60,9 @@ cn -s my-project
 In a project directory, you can also use the `npm` scripts if they are set up:
 ```bash
 npm run context-now
+
+# IMPORTANT: The old "npm run context" command has been renamed to "context-now"!
+# For error "Missing script: context" see: docs/MIGRATION.md
 ```
 
 ### Disconnect a Project
