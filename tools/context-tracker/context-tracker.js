@@ -181,11 +181,19 @@ async function fetchGitHubIssues(owner, repo) {
 
 // Priorität aus Labels extrahieren
 function getPriorityFromLabels(labels) {
-    const labelNames = labels.map(l => l.name.toLowerCase());
-    if (labelNames.some(l => l.includes('critical') || l.includes('urgent'))) return 'critical';
-    if (labelNames.some(l => l.includes('high'))) return 'high';
+    if (!labels || labels.length === 0) return 'normal';
+    
+    // Normalisiere Labels - kann ein Array von Strings oder Objekten sein
+    const labelNames = labels.map(l => {
+        if (typeof l === 'string') return l.toLowerCase();
+        if (l.name) return l.name.toLowerCase();
+        return '';
+    }).filter(Boolean);
+    
+    if (labelNames.some(l => l.includes('critical') || l.includes('urgent') || l.includes('blocker'))) return 'critical';
+    if (labelNames.some(l => l.includes('high') || l.includes('important'))) return 'high';
     if (labelNames.some(l => l.includes('medium'))) return 'medium';
-    if (labelNames.some(l => l.includes('low'))) return 'low';
+    if (labelNames.some(l => l.includes('low') || l.includes('minor'))) return 'low';
     return 'normal';
 }
 // GitHub Pull Requests abrufen
@@ -544,11 +552,17 @@ async function updateGitHubDataWithInfo(githubInfo) {
                     // Konvertiere gh Format zu unserem Format
                     issues = ghIssues.map(issue => ({
                         number: issue.number,
+                        id: `#${issue.number}`,
                         title: issue.title,
                         state: issue.state.toLowerCase(),
-                        labels: issue.labels.map(l => ({ name: l.name || l })),
-                        assignees: issue.assignees.map(a => ({ login: a.login || a })),
-                        body: issue.body || ''
+                        status: issue.state.toLowerCase(), // Dupliziere als status für Kompatibilität
+                        priority: getPriorityFromLabels(issue.labels || []),
+                        labels: issue.labels ? issue.labels.map(l => ({ name: l.name || l })) : [],
+                        assignees: issue.assignees ? issue.assignees.map(a => ({ login: a.login || a })) : [],
+                        assignee: issue.assignees && issue.assignees.length > 0 ? issue.assignees[0].login : null,
+                        body: issue.body || '',
+                        created_at: issue.createdAt || new Date().toISOString(),
+                        updated_at: issue.updatedAt || new Date().toISOString()
                     }));
                     saveJSON(ISSUES_FILE, issues);
                     console.log(`${colors.green}  ✓ ${issues.length} Issues über gh CLI abgerufen${colors.reset}`);
@@ -563,6 +577,7 @@ async function updateGitHubDataWithInfo(githubInfo) {
                                 number: pr.number,
                                 title: pr.title,
                                 state: pr.state.toLowerCase(),
+                                status: pr.state.toLowerCase(), // Dupliziere als status für Kompatibilität
                                 labels: pr.labels.map(l => ({ name: l.name || l })),
                                 draft: pr.isDraft || false
                             }));
@@ -691,10 +706,10 @@ async function showStatus() {
     
     // STATISTIKEN
     console.log(`\n${colors.bright}📌 Status:${colors.reset}`);
-    const openIssues = issues.filter(i => i.status === 'open').length;
-    const criticalIssuesCount = issues.filter(i => i.priority === 'critical' && i.status === 'open').length;
-    const highIssuesCount = issues.filter(i => i.priority === 'high' && i.status === 'open').length;
-    const openPRsCount = prs.filter(pr => pr.status === 'open').length;
+    const openIssues = issues.filter(i => (i.status === 'open' || i.state === 'open')).length;
+    const criticalIssuesCount = issues.filter(i => i.priority === 'critical' && (i.status === 'open' || i.state === 'open')).length;
+    const highIssuesCount = issues.filter(i => i.priority === 'high' && (i.status === 'open' || i.state === 'open')).length;
+    const openPRsCount = prs.filter(pr => (pr.status === 'open' || pr.state === 'open')).length;
     
     console.log(`- ${openIssues} offene Issues (${colors.red}${criticalIssuesCount} kritisch${colors.reset}, ${colors.yellow}${highIssuesCount} hoch${colors.reset})`);
     console.log(`- ${colors.cyan}${branches.active.length}${colors.reset} aktive Branches (${branches.all.length} total)`);
@@ -702,22 +717,22 @@ async function showStatus() {
     console.log(`- ${openPRsCount} offene Pull Requests`);
     
     // DETAILLIERTE ISSUE-LISTE
-    if (issues.length > 0 && issues.filter(i => i.status === 'open').length > 0) {
+    if (issues.length > 0 && issues.filter(i => (i.status === 'open' || i.state === 'open')).length > 0) {
         console.log(`\n${colors.bright}📋 Issues im Detail:${colors.reset}`);
         
         // Kritische Issues
-        const criticalIssues = issues.filter(i => i.priority === 'critical' && i.status === 'open');
+        const criticalIssues = issues.filter(i => i.priority === 'critical' && (i.status === 'open' || i.state === 'open'));
         if (criticalIssues.length > 0) {
             console.log(`\n${colors.red}🚨 Kritische Issues:${colors.reset}`);
             criticalIssues.forEach(issue => {
                 const age = Math.floor((new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
-                console.log(`  ${colors.red}●${colors.reset} ${issue.id} - ${issue.title}`);
+                console.log(`  ${colors.red}●${colors.reset} ${issue.id || `#${issue.number}`} - ${issue.title}`);
                 console.log(`    ${colors.dim}Erstellt vor ${age} Tagen${issue.assignee ? ` • Zugewiesen an: ${issue.assignee}` : ' • Nicht zugewiesen'}${colors.reset}`);
             });
         }
         
         // High Priority Issues
-        const highIssues = issues.filter(i => i.priority === 'high' && i.status === 'open');
+        const highIssues = issues.filter(i => i.priority === 'high' && (i.status === 'open' || i.state === 'open'));
         if (highIssues.length > 0) {
             console.log(`\n${colors.yellow}⚠️  High Priority Issues:${colors.reset}`);
             highIssues.forEach(issue => {
@@ -729,7 +744,7 @@ async function showStatus() {
         
         // Normale Issues (nur erste 5)
         const normalIssues = issues.filter(i => 
-            i.status === 'open' && 
+            (i.status === 'open' || i.state === 'open') && 
             !['critical', 'high'].includes(i.priority)
         ).slice(0, 5);
         
@@ -740,7 +755,7 @@ async function showStatus() {
             });
             
             const moreCount = issues.filter(i => 
-                i.status === 'open' && 
+                (i.status === 'open' || i.state === 'open') && 
                 !['critical', 'high'].includes(i.priority)
             ).length - 5;
             
@@ -750,7 +765,7 @@ async function showStatus() {
         }
     } else {
         // Keine offenen Issues vorhanden
-        const openIssuesCount = issues.filter(i => i.status === 'open').length;
+        const openIssuesCount = issues.filter(i => (i.status === 'open' || i.state === 'open')).length;
         if (openIssuesCount === 0 && issues.length === 0) {
             console.log(`\n${colors.green}✨ Keine offenen Issues vorhanden${colors.reset}`);
         }
@@ -850,7 +865,7 @@ async function showStatus() {
     
     // PULL REQUESTS
     if (prs.length > 0) {
-        const openPRs = prs.filter(pr => pr.status === 'open');
+        const openPRs = prs.filter(pr => (pr.status === 'open' || pr.state === 'open'));
         if (openPRs.length > 0) {
             console.log(`\n${colors.bright}🔀 Offene Pull Requests:${colors.reset}`);
             openPRs.forEach(pr => {
@@ -1057,7 +1072,7 @@ async function showStatus() {
     }
     
     // Remote Branches auschecken
-    const openPRs = prs.filter(pr => pr.status === 'open' && !pr.draft);
+    const openPRs = prs.filter(pr => (pr.status === 'open' || pr.state === 'open') && !pr.draft);
     if (openPRs.length > 0) {
         const oldestPR = openPRs.sort((a, b) => 
             new Date(a.created_at) - new Date(b.created_at)
@@ -1073,7 +1088,7 @@ async function showStatus() {
     // PRIORITÄT 6: High Priority Issues
     const highPriorityIssues = issues.filter(i => 
         i.priority === 'high' && 
-        i.status === 'open' &&
+        (i.status === 'open' || i.state === 'open') &&
         !i.assignee
     );
     
@@ -1226,7 +1241,7 @@ async function linkBranchToIssue(branchName) {
     }
     
     // Zeige verfügbare Issues
-    const openIssues = issues.filter(i => i.status === 'open');
+    const openIssues = issues.filter(i => (i.status === 'open' || i.state === 'open'));
     if (openIssues.length === 0) {
         console.log(`${colors.red}Keine offenen Issues gefunden!${colors.reset}`);
         return;
