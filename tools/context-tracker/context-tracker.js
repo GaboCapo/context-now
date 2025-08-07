@@ -1368,11 +1368,389 @@ async function updateStatus() {
     await showStatus();
 }
 
-// CLI Entry Point
-const command = process.argv[2] || 'status';
-const args = process.argv.slice(3);
+// ============= NEUE SPEZIFISCHE VIEW COMMANDS =============
 
-switch (command) {
+// Zeige ALLE Branches mit Details
+async function showAllBranches() {
+    console.log(`${colors.bright}🌳 Alle Branches im Detail${colors.reset}\n`);
+    
+    const localBranches = getLocalBranches();
+    const remoteBranches = await getRemoteBranches();
+    const currentBranch = getCurrentBranch();
+    const memory = loadJSON(MEMORY_FILE, {});
+    const issues = loadJSON(ISSUES_FILE);
+    
+    // Analysiere Branches
+    const closedBranches = updateClosedBranches(localBranches, remoteBranches);
+    const branches = analyzeBranches(localBranches, remoteBranches, closedBranches);
+    
+    console.log(`${colors.cyan}📊 Übersicht:${colors.reset}`);
+    console.log(`  • ${branches.all.length} Branches total`);
+    console.log(`  • ${branches.local.length} lokal, ${branches.remote.length} remote`);
+    console.log(`  • ${branches.active.length} aktive Feature/Bugfix Branches`);
+    console.log(`  • ${branches.merged.length} gemergte Branches`);
+    console.log(`  • Aktueller Branch: ${colors.green}${currentBranch}${colors.reset}\n`);
+    
+    // Lokale Branches
+    if (branches.local.length > 0) {
+        console.log(`${colors.bright}📍 Lokale Branches (${branches.local.length}):${colors.reset}`);
+        branches.local.forEach(branch => {
+            const isCurrent = branch === currentBranch;
+            const isRemote = branches.remote.includes(branch);
+            const linkedIssue = memory[branch]?.issue;
+            
+            let status = '';
+            if (isCurrent) status += `${colors.green}[CURRENT]${colors.reset} `;
+            if (!isRemote) status += `${colors.yellow}[LOCAL-ONLY]${colors.reset} `;
+            if (linkedIssue) status += `${colors.cyan}→ ${linkedIssue}${colors.reset} `;
+            if (branches.merged.includes(branch)) status += `${colors.dim}[MERGED]${colors.reset} `;
+            
+            console.log(`  ${isCurrent ? '➜' : '•'} ${branch} ${status}`);
+        });
+        console.log('');
+    }
+    
+    // Remote-only Branches
+    if (branches.remoteOnly.length > 0) {
+        console.log(`${colors.bright}☁️  Remote-only Branches (${branches.remoteOnly.length}):${colors.reset}`);
+        branches.remoteOnly.forEach(branch => {
+            const linkedIssue = memory[branch]?.issue;
+            let status = linkedIssue ? `${colors.cyan}→ ${linkedIssue}${colors.reset}` : '';
+            console.log(`  • origin/${branch} ${status}`);
+        });
+        console.log('');
+    }
+    
+    // Neue lokale Branches
+    if (branches.newLocal.length > 0) {
+        console.log(`${colors.yellow}🆕 Neue lokale Branches (nicht gepusht):${colors.reset}`);
+        branches.newLocal.forEach(branch => {
+            console.log(`  • ${branch} ${colors.dim}→ git push -u origin ${branch}${colors.reset}`);
+        });
+        console.log('');
+    }
+    
+    console.log(`${colors.dim}Tipp: Nutze 'cn cleanup' um veraltete Branches zu bereinigen${colors.reset}`);
+}
+
+// Zeige ALLE Issues mit Details
+async function showAllIssues() {
+    console.log(`${colors.bright}📋 Alle Issues im Detail${colors.reset}\n`);
+    
+    // Lade und aktualisiere Issues
+    await updateGitHubData();
+    const issues = loadJSON(ISSUES_FILE);
+    const memory = loadJSON(MEMORY_FILE, {});
+    
+    if (issues.length === 0) {
+        console.log(`${colors.yellow}Keine Issues gefunden. Nutze 'gh issue list' oder pflege issues.json manuell.${colors.reset}`);
+        return;
+    }
+    
+    // Gruppiere Issues nach Status und Priorität
+    const openIssues = issues.filter(i => (i.status === 'open' || i.state === 'open'));
+    const closedIssues = issues.filter(i => (i.status === 'closed' || i.state === 'closed'));
+    
+    console.log(`${colors.cyan}📊 Übersicht:${colors.reset}`);
+    console.log(`  • ${issues.length} Issues total`);
+    console.log(`  • ${openIssues.length} offen, ${closedIssues.length} geschlossen`);
+    
+    // Zähle nach Priorität
+    const criticalCount = openIssues.filter(i => i.priority === 'critical').length;
+    const highCount = openIssues.filter(i => i.priority === 'high').length;
+    const normalCount = openIssues.filter(i => i.priority === 'normal' || !i.priority).length;
+    
+    if (criticalCount > 0) console.log(`  • ${colors.red}${criticalCount} kritisch${colors.reset}`);
+    if (highCount > 0) console.log(`  • ${colors.yellow}${highCount} hoch${colors.reset}`);
+    console.log(`  • ${normalCount} normal\n`);
+    
+    // Sortiere Issues nach Priorität
+    const priorityOrder = { critical: 0, high: 1, medium: 2, normal: 3, low: 4 };
+    openIssues.sort((a, b) => {
+        const aPrio = priorityOrder[a.priority] ?? 3;
+        const bPrio = priorityOrder[b.priority] ?? 3;
+        return aPrio - bPrio;
+    });
+    
+    // Zeige Issues nach Priorität
+    if (openIssues.length > 0) {
+        console.log(`${colors.bright}🔴 Offene Issues (${openIssues.length}):${colors.reset}`);
+        
+        // Gruppiere nach Priorität
+        const byPriority = {};
+        openIssues.forEach(issue => {
+            const prio = issue.priority || 'normal';
+            if (!byPriority[prio]) byPriority[prio] = [];
+            byPriority[prio].push(issue);
+        });
+        
+        // Zeige nach Priorität
+        ['critical', 'high', 'medium', 'normal', 'low'].forEach(priority => {
+            if (!byPriority[priority] || byPriority[priority].length === 0) return;
+            
+            const prioColor = priority === 'critical' ? colors.red :
+                            priority === 'high' ? colors.yellow :
+                            colors.cyan;
+            
+            console.log(`\n  ${prioColor}[${priority.toUpperCase()}] (${byPriority[priority].length} Issues):${colors.reset}`);
+            
+            byPriority[priority].forEach(issue => {
+                const id = issue.id || `#${issue.number}`;
+                const assignee = issue.assignee ? `@${issue.assignee}` : 'unassigned';
+                const age = issue.created_at ? 
+                    Math.floor((new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24)) : 0;
+                
+                // Finde verknüpfte Branches
+                const linkedBranches = Object.entries(memory)
+                    .filter(([branch, data]) => data.issue === id)
+                    .map(([branch]) => branch);
+                
+                console.log(`    ${prioColor}●${colors.reset} ${id}: ${issue.title}`);
+                console.log(`      ${colors.dim}${assignee} • ${age} Tage alt${linkedBranches.length > 0 ? ` • Branch: ${linkedBranches.join(', ')}` : ''}${colors.reset}`);
+            });
+        });
+    }
+    
+    // Zeige geschlossene Issues (kompakt)
+    if (closedIssues.length > 0) {
+        console.log(`\n${colors.dim}✅ Geschlossene Issues (${closedIssues.length}):${colors.reset}`);
+        closedIssues.slice(0, 5).forEach(issue => {
+            const id = issue.id || `#${issue.number}`;
+            console.log(`  ${colors.dim}• ${id}: ${issue.title}${colors.reset}`);
+        });
+        if (closedIssues.length > 5) {
+            console.log(`  ${colors.dim}... und ${closedIssues.length - 5} weitere${colors.reset}`);
+        }
+    }
+}
+
+// Zeige ALLE Pull Requests
+async function showAllPRs() {
+    console.log(`${colors.bright}🔀 Alle Pull Requests im Detail${colors.reset}\n`);
+    
+    // Lade und aktualisiere PRs
+    await updateGitHubData();
+    const prs = loadJSON(PRS_FILE);
+    
+    if (prs.length === 0) {
+        console.log(`${colors.yellow}Keine Pull Requests gefunden. Nutze 'gh pr list' oder pflege prs.json manuell.${colors.reset}`);
+        return;
+    }
+    
+    // Gruppiere PRs
+    const openPRs = prs.filter(pr => (pr.status === 'open' || pr.state === 'open'));
+    const mergedPRs = prs.filter(pr => (pr.status === 'merged' || pr.state === 'merged'));
+    const closedPRs = prs.filter(pr => (pr.status === 'closed' || pr.state === 'closed') && 
+                                       pr.status !== 'merged' && pr.state !== 'merged');
+    const draftPRs = openPRs.filter(pr => pr.draft);
+    
+    console.log(`${colors.cyan}📊 Übersicht:${colors.reset}`);
+    console.log(`  • ${prs.length} PRs total`);
+    console.log(`  • ${openPRs.length} offen (davon ${draftPRs.length} Drafts)`);
+    console.log(`  • ${mergedPRs.length} gemerged`);
+    console.log(`  • ${closedPRs.length} geschlossen ohne Merge\n`);
+    
+    // Zeige offene PRs
+    if (openPRs.length > 0) {
+        console.log(`${colors.bright}🔄 Offene Pull Requests (${openPRs.length}):${colors.reset}`);
+        openPRs.forEach(pr => {
+            const id = pr.id || `#${pr.number}`;
+            const isDraft = pr.draft ? `${colors.dim}[DRAFT]${colors.reset} ` : '';
+            const age = pr.created_at ? 
+                Math.floor((new Date() - new Date(pr.created_at)) / (1000 * 60 * 60 * 24)) : 0;
+            
+            console.log(`  ${colors.green}●${colors.reset} PR ${id}: ${isDraft}${pr.title}`);
+            console.log(`    ${colors.dim}${pr.base || 'unknown'} ← ${pr.head || 'unknown'} • ${age} Tage alt${colors.reset}`);
+            
+            // Zeige Labels wenn vorhanden
+            if (pr.labels && pr.labels.length > 0) {
+                const labelNames = pr.labels.map(l => l.name || l).join(', ');
+                console.log(`    ${colors.dim}Labels: ${labelNames}${colors.reset}`);
+            }
+        });
+        console.log('');
+    }
+    
+    // Zeige gemergte PRs (kompakt)
+    if (mergedPRs.length > 0) {
+        console.log(`${colors.dim}✅ Gemergte PRs (letzte 5 von ${mergedPRs.length}):${colors.reset}`);
+        mergedPRs.slice(0, 5).forEach(pr => {
+            const id = pr.id || `#${pr.number}`;
+            console.log(`  ${colors.dim}• PR ${id}: ${pr.title}${colors.reset}`);
+        });
+        if (mergedPRs.length > 5) {
+            console.log(`  ${colors.dim}... und ${mergedPRs.length - 5} weitere${colors.reset}`);
+        }
+    }
+}
+
+// Zeige Branch-Issue Verknüpfungen
+async function showBranchIssueRelations() {
+    console.log(`${colors.bright}🔗 Branch-Issue Verknüpfungen${colors.reset}\n`);
+    
+    const localBranches = getLocalBranches();
+    const remoteBranches = await getRemoteBranches();
+    const issues = loadJSON(ISSUES_FILE);
+    const memory = loadJSON(MEMORY_FILE, {});
+    
+    // Analysiere Verknüpfungen
+    const relations = analyzer.analyzeBranchIssueRelations(
+        [...new Set([...localBranches, ...remoteBranches])],
+        issues,
+        memory
+    );
+    
+    console.log(`${colors.cyan}📊 Übersicht:${colors.reset}`);
+    console.log(`  • ${relations.verified.length} verifizierte Verknüpfungen`);
+    console.log(`  • ${relations.detected.length} automatisch erkannte`);
+    console.log(`  • ${relations.unlinked.length} unverknüpfte Branches`);
+    console.log(`  • ${relations.orphaned.length} verwaiste Branches\n`);
+    
+    // Verifizierte Verknüpfungen
+    if (relations.verified.length > 0) {
+        console.log(`${colors.green}✅ Verifizierte Verknüpfungen (${relations.verified.length}):${colors.reset}`);
+        relations.verified.forEach(({ branch, issue, issueData }) => {
+            const status = issueData ? 
+                `[${(issueData.status || issueData.state || 'unknown').toUpperCase()}]` : '';
+            const priority = issueData?.priority ? 
+                `[${issueData.priority.toUpperCase()}]` : '';
+            
+            console.log(`  • ${branch} → ${issue} ${status} ${priority}`);
+            if (issueData?.title) {
+                console.log(`    ${colors.dim}"${issueData.title}"${colors.reset}`);
+            }
+        });
+        console.log('');
+    }
+    
+    // Automatisch erkannte
+    if (relations.detected.length > 0) {
+        console.log(`${colors.cyan}🔍 Automatisch erkannte Verknüpfungen (${relations.detected.length}):${colors.reset}`);
+        relations.detected.forEach(({ branch, issue, issueData, confidence }) => {
+            const confColor = confidence === 'high' ? colors.green :
+                            confidence === 'medium' ? colors.yellow : colors.red;
+            
+            console.log(`  ? ${branch} → ${issue} ${confColor}[${confidence}]${colors.reset}`);
+            if (issueData?.title) {
+                console.log(`    ${colors.dim}"${issueData.title}"${colors.reset}`);
+            }
+            console.log(`    ${colors.cyan}→ cn confirm-link "${branch}" ${issue}${colors.reset}`);
+        });
+        console.log('');
+    }
+    
+    // Unverknüpfte Branches
+    if (relations.unlinked.length > 0) {
+        console.log(`${colors.yellow}⚠️  Unverknüpfte Branches (${relations.unlinked.length}):${colors.reset}`);
+        relations.unlinked.forEach(branch => {
+            console.log(`  • ${branch}`);
+            console.log(`    ${colors.cyan}→ cn link "${branch}"${colors.reset}`);
+        });
+        console.log('');
+    }
+    
+    // Verwaiste Branches
+    if (relations.orphaned.length > 0) {
+        console.log(`${colors.red}❌ Verwaiste Branches (Issue geschlossen, ${relations.orphaned.length}):${colors.reset}`);
+        relations.orphaned.forEach(({ branch, issue }) => {
+            console.log(`  • ${branch} → ${issue} ${colors.dim}[GESCHLOSSEN]${colors.reset}`);
+            console.log(`    ${colors.dim}→ git branch -D ${branch}${colors.reset}`);
+        });
+    }
+}
+
+// Zeige nur kritische Items
+async function showCriticalItems() {
+    console.log(`${colors.bright}🚨 Kritische & High Priority Items${colors.reset}\n`);
+    
+    // Lade Daten
+    await updateGitHubData();
+    const issues = loadJSON(ISSUES_FILE);
+    const prs = loadJSON(PRS_FILE);
+    const gitStatus = getGitStatus();
+    
+    let hasCritical = false;
+    
+    // Kritische Issues
+    const criticalIssues = issues.filter(i => 
+        i.priority === 'critical' && (i.status === 'open' || i.state === 'open')
+    );
+    const highIssues = issues.filter(i => 
+        i.priority === 'high' && (i.status === 'open' || i.state === 'open')
+    );
+    
+    if (criticalIssues.length > 0) {
+        hasCritical = true;
+        console.log(`${colors.red}🚨 KRITISCHE Issues (${criticalIssues.length}):${colors.reset}`);
+        criticalIssues.forEach(issue => {
+            const id = issue.id || `#${issue.number}`;
+            const age = issue.created_at ? 
+                Math.floor((new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24)) : 0;
+            
+            console.log(`  ${colors.red}●${colors.reset} ${id}: ${issue.title}`);
+            console.log(`    ${colors.dim}${age} Tage alt • ${issue.assignee ? `@${issue.assignee}` : 'Nicht zugewiesen'}${colors.reset}`);
+            console.log(`    ${colors.cyan}→ git checkout -b bugfix/critical-${id.replace('#', '')}${colors.reset}`);
+        });
+        console.log('');
+    }
+    
+    if (highIssues.length > 0) {
+        hasCritical = true;
+        console.log(`${colors.yellow}⚠️  HIGH Priority Issues (${highIssues.length}):${colors.reset}`);
+        highIssues.forEach(issue => {
+            const id = issue.id || `#${issue.number}`;
+            console.log(`  ${colors.yellow}●${colors.reset} ${id}: ${issue.title}`);
+            console.log(`    ${colors.cyan}→ git checkout -b feature/high-priority-${id.replace('#', '')}${colors.reset}`);
+        });
+        console.log('');
+    }
+    
+    // Uncommitted Changes
+    if (gitStatus.hasChanges) {
+        hasCritical = true;
+        console.log(`${colors.red}⚠️  Uncommitted Changes vorhanden!${colors.reset}`);
+        console.log(`  ${colors.cyan}→ git stash push -m "WIP: $(date)"${colors.reset}`);
+        console.log(`  ${colors.dim}oder${colors.reset}`);
+        console.log(`  ${colors.cyan}→ git add . && git commit -m "WIP: Save work"${colors.reset}\n`);
+    }
+    
+    // Alte offene PRs
+    const oldPRs = prs.filter(pr => {
+        if (pr.status !== 'open' && pr.state !== 'open') return false;
+        const age = pr.created_at ? 
+            Math.floor((new Date() - new Date(pr.created_at)) / (1000 * 60 * 60 * 24)) : 0;
+        return age > 14; // Älter als 2 Wochen
+    });
+    
+    if (oldPRs.length > 0) {
+        hasCritical = true;
+        console.log(`${colors.yellow}📅 Alte offene PRs (> 14 Tage):${colors.reset}`);
+        oldPRs.forEach(pr => {
+            const id = pr.id || `#${pr.number}`;
+            const age = Math.floor((new Date() - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
+            console.log(`  • PR ${id}: ${pr.title} ${colors.dim}(${age} Tage alt)${colors.reset}`);
+        });
+        console.log('');
+    }
+    
+    if (!hasCritical) {
+        console.log(`${colors.green}✅ Keine kritischen Items gefunden!${colors.reset}`);
+        console.log(`${colors.dim}Alle kritischen Issues sind bearbeitet oder geschlossen.${colors.reset}`);
+    } else {
+        console.log(`${colors.bright}📋 Empfohlene Reihenfolge:${colors.reset}`);
+        console.log('1. Uncommitted Changes sichern');
+        console.log('2. Kritische Security/System Issues zuerst');
+        console.log('3. High Priority Features/Bugs');
+        console.log('4. Alte PRs reviewen und mergen');
+    }
+}
+
+// CLI Entry Point
+(async () => {
+    const command = process.argv[2] || 'status';
+    const args = process.argv.slice(3);
+
+    switch (command) {
     case 'status':
         // Standard ist jetzt erweiterte Analyse
         showStatus();
@@ -1420,13 +1798,52 @@ switch (command) {
         cleanupBranches(false);
         break;
     
+    // NEUE SPEZIFISCHE COMMANDS
+    case 'branches':
+    case '--branches':
+    case 'branch':
+        await showAllBranches();
+        break;
+    
+    case 'issues':
+    case '--issues':
+    case 'issue':
+        await showAllIssues();
+        break;
+    
+    case 'prs':
+    case '--prs':
+    case 'pr':
+    case 'pulls':
+        await showAllPRs();
+        break;
+    
+    case 'relations':
+    case '--relations':
+    case 'links':
+        await showBranchIssueRelations();
+        break;
+    
+    case 'critical':
+    case '--critical':
+        await showCriticalItems();
+        break;
+    
     default:
         console.log(`${colors.red}Unbekannter Befehl: ${command}${colors.reset}`);
         console.log('\nVerfügbare Befehle:');
+        console.log(`${colors.bright}Hauptbefehle:${colors.reset}`);
         console.log('  status            - Zeigt erweiterte Analyse mit allen Details (Standard)');
         console.log('  simple            - Zeigt vereinfachte Basis-Empfehlungen');
         console.log('  sync              - Synchronisiert Repository mit Remote');
         console.log('  update            - Sync + Status kombiniert');
+        console.log(`\n${colors.bright}Fokussierte Ansichten:${colors.reset}`);
+        console.log('  branches          - Zeigt ALLE Branches mit Details');
+        console.log('  issues            - Zeigt ALLE Issues (sortiert nach Priorität)');
+        console.log('  prs/pulls         - Zeigt ALLE Pull Requests');
+        console.log('  relations         - Zeigt ALLE Branch-Issue Verknüpfungen');
+        console.log('  critical          - Zeigt NUR kritische/high priority Items');
+        console.log(`\n${colors.bright}Verwaltung:${colors.reset}`);
         console.log('  link [branch]     - Verknüpft Branch mit Issue (interaktiv)');
         console.log('  confirm-link      - Bestätigt automatisch erkannte Verknüpfung');
         console.log('  cleanup           - Zeigt zu löschende Branches (dry-run)');
@@ -1434,4 +1851,9 @@ switch (command) {
         console.log('\nFlags:');
         console.log('  --simple, -s      - Aktiviert vereinfachte Ansicht');
         console.log('  --basic           - Alias für --simple');
-}
+        console.log('  --debug           - Zeigt Debug-Informationen');
+    }
+})().catch(error => {
+    console.error(`${colors.red}Fehler: ${error.message}${colors.reset}`);
+    process.exit(1);
+});
