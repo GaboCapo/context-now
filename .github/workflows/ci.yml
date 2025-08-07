@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Run tests
+      run: npm test
+    
+    - name: Check script syntax
+      run: |
+        node -c context-now.js
+        node -c tools/context-tracker/context-tracker.js
+        bash -n install.sh
+        bash -n uninstall.sh
+        bash -n quick-setup.sh
+    
+    - name: Test installation script (dry run)
+      run: |
+        # Erstelle temporäres Test-Verzeichnis
+        export TEST_HOME=$(mktemp -d)
+        export HOME=$TEST_HOME
+        mkdir -p $HOME/.local/bin
+        
+        # Führe Installation aus
+        ./install.sh --non-interactive
+        
+        # Prüfe ob Installation erfolgreich war
+        test -d $HOME/.context-now
+        test -f $HOME/.local/bin/cn
+        
+        # Cleanup
+        rm -rf $TEST_HOME
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+    
+    - name: Check for hardcoded secrets
+      run: |
+        # Suche nach potentiellen Secrets (außer in Dokumentation)
+        ! grep -r --include="*.js" --include="*.json" --exclude-dir=node_modules \
+          -E "(api[_-]?key|secret|token|password|pwd|pass)[[:space:]]*[:=][[:space:]]*['\"][^'\"]+['\"]" . || {
+          echo "Warning: Potential hardcoded secrets found. Please review."
+          exit 1
+        }
+    
+    - name: Validate JSON files
+      run: |
+        for file in $(find . -name "*.json" -not -path "./node_modules/*"); do
+          node -e "JSON.parse(require('fs').readFileSync('$file', 'utf8'))" || exit 1
+        done
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run security audit
+      run: npm audit --audit-level=high || true

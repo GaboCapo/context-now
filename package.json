@@ -7,6 +7,7 @@
     "context-now": "./context-now.js"
   },
   "scripts": {
+    "test": "node test/context-now.test.js",
     "context": "node tools/context-tracker/context-tracker.js status",
     "context:simple": "node tools/context-tracker/context-tracker.js simple",
     "context:basic": "node tools/context-tracker/context-tracker.js simple",

@@ -5,9 +5,19 @@ const path = require('path');
 const { execSync } = require('child_process');
 const os = require('os');
 
-// Zentrale Konfiguration
-const CONTEXT_NOW_DIR = path.join(os.homedir(), 'Code', 'context-now');
-const CONFIG_FILE = path.join(CONTEXT_NOW_DIR, 'projects.json');
+// Zentrale Konfiguration - nutze Installations-Verzeichnis ODER Source-Verzeichnis
+const INSTALL_DIR = path.join(os.homedir(), '.context-now');
+const SOURCE_DIR = __dirname;  // Verzeichnis wo dieses Script liegt
+
+// Prüfe ob wir aus Installation oder Source laufen
+const isInstalled = fs.existsSync(INSTALL_DIR) && __dirname.includes('.context-now');
+const CONTEXT_NOW_DIR = isInstalled ? INSTALL_DIR : SOURCE_DIR;
+
+// Config immer im Installations-Verzeichnis (falls vorhanden) oder Source
+const CONFIG_DIR = fs.existsSync(path.join(os.homedir(), '.config', 'context-now')) 
+    ? path.join(os.homedir(), '.config', 'context-now')
+    : CONTEXT_NOW_DIR;
+const CONFIG_FILE = path.join(CONFIG_DIR, 'projects.json');
 const TOOLS_DIR = path.join(CONTEXT_NOW_DIR, 'tools', 'context-tracker');
 
 // Farben für Terminal-Output
@@ -100,17 +110,27 @@ function connectProject(projectPath) {
     if (fs.existsSync(scriptTarget)) {
         const stats = fs.lstatSync(scriptTarget);
         if (stats.isSymbolicLink()) {
-            fs.unlinkSync(scriptTarget);
+            // Prüfe ob Symlink bereits auf die richtige Quelle zeigt
+            const currentTarget = fs.readlinkSync(scriptTarget);
+            if (currentTarget === scriptSource) {
+                console.log(`${colors.cyan}✓ Script bereits korrekt verlinkt${colors.reset}`);
+            } else {
+                fs.unlinkSync(scriptTarget);
+                fs.symlinkSync(scriptSource, scriptTarget);
+                console.log(`${colors.green}✅ Script-Link aktualisiert${colors.reset}`);
+            }
         } else {
             // Echte Datei gefunden - Backup erstellen
             const backupPath = scriptTarget + '.backup.' + Date.now();
             fs.renameSync(scriptTarget, backupPath);
             console.log(`${colors.yellow}⚠️  Backup erstellt: ${backupPath}${colors.reset}`);
+            fs.symlinkSync(scriptSource, scriptTarget);
+            console.log(`${colors.green}✅ Script verlinkt in /tools/context-now/${colors.reset}`);
         }
+    } else {
+        fs.symlinkSync(scriptSource, scriptTarget);
+        console.log(`${colors.green}✅ Script verlinkt in /tools/context-now/${colors.reset}`);
     }
-    
-    fs.symlinkSync(scriptSource, scriptTarget);
-    console.log(`${colors.green}✅ Script verlinkt in /tools/context-now/${colors.reset}`);
     
     // Modules Verzeichnis verlinken (für Dependencies)
     const modulesSource = path.join(TOOLS_DIR, 'modules');
@@ -118,6 +138,15 @@ function connectProject(projectPath) {
     if (!fs.existsSync(modulesTarget)) {
         fs.symlinkSync(modulesSource, modulesTarget);
         console.log(`${colors.cyan}  → modules/ verlinkt${colors.reset}`);
+    } else if (fs.lstatSync(modulesTarget).isSymbolicLink()) {
+        const currentTarget = fs.readlinkSync(modulesTarget);
+        if (currentTarget === modulesSource) {
+            console.log(`${colors.cyan}  → modules/ bereits korrekt verlinkt${colors.reset}`);
+        } else {
+            fs.unlinkSync(modulesTarget);
+            fs.symlinkSync(modulesSource, modulesTarget);
+            console.log(`${colors.cyan}  → modules/ Link aktualisiert${colors.reset}`);
+        }
     }
     
     // Templates verlinken (read-only)
@@ -126,20 +155,29 @@ function connectProject(projectPath) {
         const templateSource = path.join(TOOLS_DIR, template);
         const templateTarget = path.join(projectToolsDir, template);
         
-        if (fs.existsSync(templateTarget) && !fs.lstatSync(templateTarget).isSymbolicLink()) {
-            // Backup wenn echte Datei
-            const backupPath = templateTarget + '.backup.' + Date.now();
-            fs.renameSync(templateTarget, backupPath);
-            console.log(`${colors.yellow}  → Backup: ${path.basename(backupPath)}${colors.reset}`);
+        if (!fs.existsSync(templateSource)) {
+            return; // Skip wenn Template nicht existiert
         }
         
         if (fs.existsSync(templateTarget)) {
-            fs.unlinkSync(templateTarget);
+            const stats = fs.lstatSync(templateTarget);
+            if (stats.isSymbolicLink()) {
+                const currentTarget = fs.readlinkSync(templateTarget);
+                if (currentTarget === templateSource) {
+                    console.log(`${colors.cyan}  → ${template} bereits korrekt verlinkt${colors.reset}`);
+                    return;
+                }
+                fs.unlinkSync(templateTarget);
+            } else {
+                // Backup wenn echte Datei
+                const backupPath = templateTarget + '.backup.' + Date.now();
+                fs.renameSync(templateTarget, backupPath);
+                console.log(`${colors.yellow}  → Backup: ${path.basename(backupPath)}${colors.reset}`);
+            }
         }
-        if (fs.existsSync(templateSource)) {
-            fs.symlinkSync(templateSource, templateTarget);
-            console.log(`${colors.cyan}  → ${template} verlinkt${colors.reset}`);
-        }
+        
+        fs.symlinkSync(templateSource, templateTarget);
+        console.log(`${colors.cyan}  → ${template} verlinkt${colors.reset}`);
     });
     
     // Projekt-spezifische JSON-Dateien erstellen (wenn nicht vorhanden)

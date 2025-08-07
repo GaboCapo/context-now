@@ -217,7 +217,7 @@ setup_environment() {
 export CONTEXT_NOW_HOME="$INSTALL_DIR"
 export CONTEXT_NOW_CONFIG="$CONFIG_DIR"
 export CONTEXT_NOW_PROJECTS="$CONFIG_DIR/projects.json"
-export PATH="\$PATH:$BIN_DIR"
+export PATH="$BIN_DIR:\$PATH"
 
 # Aliases
 alias cn='$INSTALL_DIR/cn'
@@ -247,7 +247,7 @@ EOF
 set -gx CONTEXT_NOW_HOME "$INSTALL_DIR"
 set -gx CONTEXT_NOW_CONFIG "$CONFIG_DIR"
 set -gx CONTEXT_NOW_PROJECTS "$CONFIG_DIR/projects.json"
-set -gx PATH \$PATH "$BIN_DIR"
+set -gx PATH "$BIN_DIR" \$PATH
 
 # Aliases for Fish
 alias cn '$INSTALL_DIR/cn'

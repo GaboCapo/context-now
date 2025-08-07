@@ -4,5 +4,21 @@
 # Find the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Check if we're running from installation or source
+if [[ "$SCRIPT_DIR" == *"/.context-now"* ]] || [[ "$SCRIPT_DIR" == *"/.local/bin"* ]]; then
+    # Running from installation - look for the actual script
+    if [ -f "$HOME/.context-now/context-now.js" ]; then
+        CONTEXT_NOW_SCRIPT="$HOME/.context-now/context-now.js"
+    elif [ -f "$HOME/Code/context-now/context-now.js" ]; then
+        CONTEXT_NOW_SCRIPT="$HOME/Code/context-now/context-now.js"
+    else
+        echo "Error: context-now.js not found in expected locations"
+        exit 1
+    fi
+else
+    # Running from source directory
+    CONTEXT_NOW_SCRIPT="$SCRIPT_DIR/context-now.js"
+fi
+
 # Execute context-now.js with passed arguments
-node "$SCRIPT_DIR/context-now.js" "$@"
+node "$CONTEXT_NOW_SCRIPT" "$@"
