@@ -75,22 +75,54 @@ function gitCommand(command, defaultValue = '') {
 
 // GitHub Repo Info extrahieren
 function getGitHubInfo() {
+    // Methode 1: Versuche zuerst gh CLI (wenn verfügbar)
+    try {
+        const ghResult = execSync('gh repo view --json owner,name 2>/dev/null', { 
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'pipe']
+        }).trim();
+        
+        if (ghResult) {
+            const repoInfo = JSON.parse(ghResult);
+            if (repoInfo.owner && repoInfo.name) {
+                return {
+                    owner: repoInfo.owner.login || repoInfo.owner,
+                    repo: repoInfo.name
+                };
+            }
+        }
+    } catch (e) {
+        // gh CLI nicht verfügbar oder Fehler, fahre mit anderen Methoden fort
+    }
+    
+    // Methode 2: Parse git remote URL
     const remoteUrl = gitCommand('git config --get remote.origin.url');
     if (!remoteUrl) return null;
     
-    // Parse verschiedene URL-Formate
-    let match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
-    if (!match) {
-        // Versuche SSH-Config Format (z.B. git@github-context-now:owner/repo)
-        match = remoteUrl.match(/github-[^:]+:([^/]+)\/([^/.]+)/);
+    // Erweiterte Regex-Patterns für verschiedene Formate
+    const patterns = [
+        // Standard GitHub HTTPS/SSH
+        /github\.com[:/]([^/]+)\/([^/.]+?)(?:\.git)?$/,
+        // SSH-Config mit Alias (z.B. git@github.com-work:owner/repo)
+        /github\.com-[^:]+:([^/]+)\/([^/.]+?)(?:\.git)?$/,
+        // Generisches SSH-Config Format (z.B. git@github-alias:owner/repo)
+        /github[^:]*:([^/]+)\/([^/.]+?)(?:\.git)?$/,
+        // HTTPS mit Authentifizierung
+        /https:\/\/[^@]+@github\.com\/([^/]+)\/([^/.]+?)(?:\.git)?$/,
+        // GH CLI Format
+        /gh:([^/]+)\/([^/.]+?)(?:\.git)?$/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = remoteUrl.match(pattern);
+        if (match) {
+            return {
+                owner: match[1],
+                repo: match[2]
+            };
+        }
     }
     
-    if (match) {
-        return {
-            owner: match[1],
-            repo: match[2]
-        };
-    }
     return null;
 }
 
@@ -446,8 +478,39 @@ function updateClosedBranches(localBranches, remoteBranches) {
 // Issues und PRs von GitHub holen
 async function updateGitHubData() {
     const githubInfo = getGitHubInfo();
+    
+    // Debug-Output wenn erwünscht
+    if (process.argv.includes('--debug')) {
+        const remoteUrl = gitCommand('git config --get remote.origin.url');
+        console.log(`${colors.dim}  [DEBUG] Remote URL: ${remoteUrl}${colors.reset}`);
+        console.log(`${colors.dim}  [DEBUG] GitHub Info: ${githubInfo ? JSON.stringify(githubInfo) : 'null'}${colors.reset}`);
+    }
+    
     if (!githubInfo) {
+        // Versuche nochmal mit gh CLI direkt
+        try {
+            const ghResult = execSync('gh repo view --json owner,name 2>/dev/null', { 
+                encoding: 'utf8',
+                stdio: ['pipe', 'pipe', 'pipe']
+            }).trim();
+            
+            if (ghResult) {
+                const repoInfo = JSON.parse(ghResult);
+                console.log(`${colors.green}  ✓ Repository über gh CLI erkannt: ${repoInfo.owner.login}/${repoInfo.name}${colors.reset}`);
+                // Setze githubInfo manuell
+                const githubInfo = {
+                    owner: repoInfo.owner.login,
+                    repo: repoInfo.name
+                };
+                // Fahre mit diesem githubInfo fort
+                return await updateGitHubDataWithInfo(githubInfo);
+            }
+        } catch (e) {
+            // gh CLI fehlgeschlagen
+        }
+        
         console.log(`${colors.yellow}  ⚠️  Kein GitHub-Repository erkannt${colors.reset}`);
+        console.log(`${colors.dim}     Tipp: Prüfen Sie 'git remote -v' oder nutzen Sie 'gh repo view'${colors.reset}`);
         // Lade lokale Daten als Fallback
         return { 
             issues: loadJSON(ISSUES_FILE), 
@@ -455,9 +518,13 @@ async function updateGitHubData() {
         };
     }
     
+    return await updateGitHubDataWithInfo(githubInfo);
+}
+
+// Hilfsfunktion für GitHub-Daten-Update
+async function updateGitHubDataWithInfo(githubInfo) {
     let issues = loadJSON(ISSUES_FILE);  // Lade zuerst lokale Issues
     let prs = loadJSON(PRS_FILE);        // Lade zuerst lokale PRs
-    
     // Versuche zuerst SSH/Git basierte Methoden (funktioniert mit Deploy-Keys!)
     const useSSH = gitCommand('git remote -v', '').includes('git@');
     
