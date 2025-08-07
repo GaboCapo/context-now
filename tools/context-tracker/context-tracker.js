@@ -18,11 +18,18 @@ try {
 }
 
 // Paths zu den JSON-Dateien - WICHTIG: Verwende process.cwd() für lokale Projekt-Dateien!
-const ISSUES_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'issues.json');
-const PRS_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'prs.json');
-const MEMORY_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'project-memory.json');
-const GITHUB_BRANCHES_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'github-branches.json');
-const CLOSED_BRANCHES_FILE = path.join(process.cwd(), 'tools', 'context-tracker', 'closed-branches.json');
+// Unterstütze beide Namespaces für Kompatibilität
+const contextTrackerPath = path.join(process.cwd(), 'tools', 'context-tracker');
+const contextNowPath = path.join(process.cwd(), 'tools', 'context-now');
+
+// Verwende context-now als primären Namespace, falle zurück auf context-tracker wenn vorhanden
+const toolsPath = fs.existsSync(contextNowPath) ? contextNowPath : contextTrackerPath;
+
+const ISSUES_FILE = path.join(toolsPath, 'issues.json');
+const PRS_FILE = path.join(toolsPath, 'prs.json');
+const MEMORY_FILE = path.join(toolsPath, 'project-memory.json');
+const GITHUB_BRANCHES_FILE = path.join(toolsPath, 'github-branches.json');
+const CLOSED_BRANCHES_FILE = path.join(toolsPath, 'closed-branches.json');
 
 // Farben für Terminal-Output
 const colors = {
@@ -455,21 +462,71 @@ async function updateGitHubData() {
     const useSSH = gitCommand('git remote -v', '').includes('git@');
     
     if (useSSH) {
+        // Prüfe ob gh CLI verfügbar ist
         try {
-            // Versuche Issues über Git zu holen (z.B. mit gh CLI wenn installiert)
-            console.log(`${colors.cyan}  → Versuche Issues über Git/SSH...${colors.reset}`);
+            execSync('which gh', { stdio: 'ignore' });
+            console.log(`${colors.cyan}  → Versuche Issues über gh CLI zu holen...${colors.reset}`);
             
-            // Für jetzt: Behalte lokale Issues bei privaten Repos
-            if (issues.length > 0) {
-                console.log(`${colors.green}  ✓ Verwende ${issues.length} lokale Issues${colors.reset}`);
-            } else {
-                console.log(`${colors.dim}  → Keine lokalen Issues gefunden${colors.reset}`);
+            try {
+                // Versuche Issues über gh CLI zu holen
+                const ghIssuesRaw = execSync(`gh issue list --repo ${githubInfo.owner}/${githubInfo.repo} --state all --limit 100 --json number,title,state,labels,assignees,body`, 
+                    { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+                
+                const ghIssues = JSON.parse(ghIssuesRaw);
+                if (ghIssues && ghIssues.length > 0) {
+                    // Konvertiere gh Format zu unserem Format
+                    issues = ghIssues.map(issue => ({
+                        number: issue.number,
+                        title: issue.title,
+                        state: issue.state.toLowerCase(),
+                        labels: issue.labels.map(l => ({ name: l.name || l })),
+                        assignees: issue.assignees.map(a => ({ login: a.login || a })),
+                        body: issue.body || ''
+                    }));
+                    saveJSON(ISSUES_FILE, issues);
+                    console.log(`${colors.green}  ✓ ${issues.length} Issues über gh CLI abgerufen${colors.reset}`);
+                    
+                    // Versuche auch PRs zu holen
+                    try {
+                        const ghPRsRaw = execSync(`gh pr list --repo ${githubInfo.owner}/${githubInfo.repo} --state all --limit 100 --json number,title,state,labels,isDraft`, 
+                            { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+                        const ghPRs = JSON.parse(ghPRsRaw);
+                        if (ghPRs && ghPRs.length > 0) {
+                            prs = ghPRs.map(pr => ({
+                                number: pr.number,
+                                title: pr.title,
+                                state: pr.state.toLowerCase(),
+                                labels: pr.labels.map(l => ({ name: l.name || l })),
+                                draft: pr.isDraft || false
+                            }));
+                            saveJSON(PRS_FILE, prs);
+                            console.log(`${colors.green}  ✓ ${prs.length} PRs über gh CLI abgerufen${colors.reset}`);
+                        }
+                    } catch (e) {
+                        // PRs konnten nicht abgerufen werden
+                    }
+                    
+                    return { issues, prs };
+                }
+            } catch (ghError) {
+                console.log(`${colors.yellow}  ⚠️  gh CLI Fehler: ${ghError.message || 'Zugriff verweigert'}${colors.reset}`);
             }
-            
-            return { issues, prs };
         } catch (e) {
-            // Fallback zu API
+            // gh CLI nicht installiert
+            console.log(`${colors.dim}  → gh CLI nicht verfügbar${colors.reset}`);
         }
+        
+        // Fallback: Verwende lokale Issues bei SSH
+        console.log(`${colors.cyan}  → Verwende lokale Daten für SSH-Repository${colors.reset}`);
+        if (issues.length > 0) {
+            console.log(`${colors.green}  ✓ Verwende ${issues.length} lokale Issues${colors.reset}`);
+        } else {
+            console.log(`${colors.dim}  → Keine lokalen Issues gefunden${colors.reset}`);
+            console.log(`${colors.yellow}  ℹ️  Tipp: Installiere gh CLI für besseren Zugriff auf private Repos${colors.reset}`);
+            console.log(`${colors.dim}     brew install gh (macOS) oder apt install gh (Linux)${colors.reset}`);
+        }
+        
+        // Nicht sofort returnen, versuche noch die API
     }
     
     // Fallback: GitHub API (nur für öffentliche Repos)
