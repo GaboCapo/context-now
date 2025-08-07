@@ -52,6 +52,100 @@ function saveProjects(projects) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(projects, null, 2));
 }
 
+// Hilfsfunktion: Füge Context-Now zu .gitignore hinzu
+function updateProjectGitignore(projectPath) {
+    const gitignorePath = path.join(projectPath, '.gitignore');
+    const entriesToAdd = [
+        '',
+        '# Context-Now (auto-generated - do not remove)',
+        'context-now/',
+        'context-now-logs/',
+        'tools/context-now/*.json',
+        '!tools/context-now/*.template.json',
+        'tools/context-tracker/*.json',
+        '!tools/context-tracker/*.template.json',
+        '',
+        '# Prevent accidental context-now repository commits',
+        '.context-now/',
+        'context-now/.git/',
+        'tools/context-now/.git/',
+        ''
+    ];
+    
+    // Lese existierende .gitignore oder erstelle neue
+    let gitignoreContent = '';
+    let hasContextNowSection = false;
+    
+    if (fs.existsSync(gitignorePath)) {
+        gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+        hasContextNowSection = gitignoreContent.includes('# Context-Now (auto-generated');
+    }
+    
+    if (!hasContextNowSection) {
+        // Füge Context-Now Sektion hinzu
+        const newContent = gitignoreContent + 
+            (gitignoreContent && !gitignoreContent.endsWith('\n') ? '\n' : '') +
+            entriesToAdd.join('\n');
+        
+        fs.writeFileSync(gitignorePath, newContent);
+        console.log(`${colors.green}✅ .gitignore aktualisiert mit Context-Now Einträgen${colors.reset}`);
+        return true;
+    }
+    
+    return false;
+}
+
+// Hilfsfunktion: Bereinige potenzielle Git-Probleme
+function cleanupGitIssues(projectPath) {
+    try {
+        // Prüfe ob context-now bereits im Git-Index ist
+        const gitStatus = execSync('git status --porcelain', { 
+            cwd: projectPath, 
+            encoding: 'utf8',
+            stdio: 'pipe'
+        });
+        
+        // Suche nach context-now im Git-Status
+        if (gitStatus.includes('context-now/') || gitStatus.includes('tools/context-now/')) {
+            console.log(`${colors.yellow}⚠️  Context-Now Dateien im Git-Index gefunden${colors.reset}`);
+            
+            // Entferne aus Git-Cache
+            try {
+                execSync('git rm --cached -rf context-now 2>/dev/null', { 
+                    cwd: projectPath,
+                    stdio: 'pipe'
+                });
+                console.log(`${colors.green}✅ context-now/ aus Git-Cache entfernt${colors.reset}`);
+            } catch (e) {
+                // Ignoriere Fehler wenn Dateien nicht existieren
+            }
+            
+            try {
+                execSync('git rm --cached -rf tools/context-now 2>/dev/null', { 
+                    cwd: projectPath,
+                    stdio: 'pipe' 
+                });
+                console.log(`${colors.green}✅ tools/context-now/ aus Git-Cache entfernt${colors.reset}`);
+            } catch (e) {
+                // Ignoriere Fehler wenn Dateien nicht existieren
+            }
+            
+            try {
+                execSync('git rm --cached -rf tools/context-tracker 2>/dev/null', { 
+                    cwd: projectPath,
+                    stdio: 'pipe'
+                });
+                console.log(`${colors.green}✅ tools/context-tracker/ aus Git-Cache entfernt${colors.reset}`);
+            } catch (e) {
+                // Ignoriere Fehler wenn Dateien nicht existieren
+            }
+        }
+    } catch (e) {
+        // Projekt ist möglicherweise kein Git-Repository
+        // Das ist OK - kein Fehler
+    }
+}
+
 // Projekt verbinden (symlinks erstellen) - MIT SICHERHEITS-CHECKS
 function connectProject(projectPath) {
     const absolutePath = path.resolve(projectPath);
@@ -61,8 +155,33 @@ function connectProject(projectPath) {
         return;
     }
     
+    // KRITISCH: Prüfe ob context-now INNERHALB des Zielprojekts geklont wurde
+    const contextNowInProject = path.join(absolutePath, 'context-now');
+    if (fs.existsSync(contextNowInProject) && fs.existsSync(path.join(contextNowInProject, '.git'))) {
+        console.error(`${colors.red}❌ WARNUNG: Context-Now Repository innerhalb des Projekts gefunden!${colors.reset}`);
+        console.error(`${colors.red}   Dies verursacht Git-Submodule-Probleme.${colors.reset}`);
+        console.log(`${colors.yellow}   Lösung: Context-Now sollte außerhalb des Projekts installiert werden.${colors.reset}`);
+        console.log(`${colors.cyan}   Empfehlung: Verschiebe context-now nach ~/Code/context-now${colors.reset}`);
+        
+        // Biete automatische Bereinigung an
+        console.log(`\n${colors.yellow}🔧 Automatische Bereinigung wird durchgeführt...${colors.reset}`);
+        
+        // Entferne .git Verzeichnis aus context-now im Projekt
+        const gitDir = path.join(contextNowInProject, '.git');
+        if (fs.existsSync(gitDir)) {
+            fs.rmSync(gitDir, { recursive: true, force: true });
+            console.log(`${colors.green}✅ .git Verzeichnis aus context-now/ entfernt${colors.reset}`);
+        }
+    }
+    
     const projectName = path.basename(absolutePath);
     const projects = loadProjects();
+    
+    // Aktualisiere .gitignore BEVOR wir Dateien erstellen
+    const gitignoreUpdated = updateProjectGitignore(absolutePath);
+    
+    // Bereinige potenzielle Git-Probleme
+    cleanupGitIssues(absolutePath);
     
     // NEUER NAMESPACE: /tools/context-now/ statt /tools/context-tracker/
     const projectToolsDir = path.join(absolutePath, 'tools', 'context-now');
@@ -565,6 +684,73 @@ function setupSSHKey() {
     console.log(`  2. Prüfe den Status: ${colors.bright}cn -s${colors.reset}`);
 }
 
+// Focused commands runner
+function runFocusedCommand(command, projectName) {
+    const projects = loadProjects();
+    
+    // Determine which project to use
+    let targetProject = null;
+    let targetPath = null;
+    
+    if (projectName) {
+        // Specific project requested
+        if (projects[projectName]) {
+            targetProject = projectName;
+            targetPath = projects[projectName].path;
+        } else {
+            console.error(`${colors.red}❌ Projekt '${projectName}' nicht gefunden${colors.reset}`);
+            listProjects();
+            return;
+        }
+    } else {
+        // Try to find current project
+        const currentDir = process.cwd();
+        for (const [name, data] of Object.entries(projects)) {
+            if (data.path === currentDir) {
+                targetProject = name;
+                targetPath = data.path;
+                break;
+            }
+        }
+        
+        if (!targetProject) {
+            console.error(`${colors.red}❌ Kein Projekt im aktuellen Verzeichnis gefunden${colors.reset}`);
+            console.log(`${colors.yellow}Verwende: cn ${command} <projekt-name>${colors.reset}`);
+            listProjects();
+            return;
+        }
+    }
+    
+    // Get the namespace for this project
+    const namespace = projects[targetProject].namespace || 'context-now';
+    const trackerPath = path.join(targetPath, 'tools', namespace, 'context-tracker.js');
+    
+    if (!fs.existsSync(trackerPath)) {
+        console.error(`${colors.red}❌ Context-Tracker nicht gefunden für '${targetProject}'${colors.reset}`);
+        console.log(`${colors.yellow}Pfad: ${trackerPath}${colors.reset}`);
+        return;
+    }
+    
+    // Execute the command with the context-tracker
+    console.log(`${colors.cyan}🎯 Projekt: ${targetProject}${colors.reset}`);
+    console.log(`${colors.dim}Pfad: ${targetPath}${colors.reset}\n`);
+    
+    try {
+        const { execSync } = require('child_process');
+        execSync(`node "${trackerPath}" ${command}`, { 
+            stdio: 'inherit',
+            cwd: targetPath
+        });
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            console.error(`${colors.red}❌ Node.js nicht gefunden${colors.reset}`);
+        } else if (error.status !== null) {
+            // Command executed but returned non-zero exit code
+            process.exit(error.status);
+        }
+    }
+}
+
 // Hilfe anzeigen
 function showHelp() {
     console.log(`
@@ -584,6 +770,13 @@ ${colors.cyan}Optionen:${colors.reset}
   ${colors.green}--update-scripts <name>${colors.reset}  NPM Scripts zu package.json hinzufügen
   ${colors.green}-h, --help${colors.reset}               Diese Hilfe anzeigen
 
+${colors.cyan}Fokussierte Ansichten:${colors.reset}
+  ${colors.green}branches [name]${colors.reset}          Alle Branches anzeigen (ohne Kürzung)
+  ${colors.green}issues [name]${colors.reset}            Alle Issues anzeigen (ohne Kürzung)
+  ${colors.green}prs [name]${colors.reset}               Alle Pull Requests anzeigen
+  ${colors.green}relations [name]${colors.reset}         Issue-Beziehungen anzeigen
+  ${colors.green}critical [name]${colors.reset}          Nur kritische Issues anzeigen
+
 ${colors.cyan}Beispiele:${colors.reset}
   cn -k                                      # SSH-Key einrichten
   cn -c /home/user/mein-projekt             # Projekt verbinden
@@ -593,6 +786,10 @@ ${colors.cyan}Beispiele:${colors.reset}
   cn -s                                      # Status aktuelles Projekt
   cn -s mein-projekt                         # Status spezifisches Projekt
   cn -d mein-projekt                         # Projekt trennen
+  
+  cn branches                                # Alle Branches (aktuelles Projekt)
+  cn issues mein-projekt                     # Alle Issues eines Projekts
+  cn critical                                # Nur kritische Issues anzeigen
 
 ${colors.cyan}NPM Scripts (in verbundenen Projekten):${colors.reset}
   npm run context-now                       # Status anzeigen
@@ -677,6 +874,14 @@ switch (option) {
                 updatePackageJson(projects[argument].path, namespace);
             }
         }
+        break;
+        
+    case 'branches':
+    case 'issues':
+    case 'prs':
+    case 'relations':
+    case 'critical':
+        runFocusedCommand(option, argument);
         break;
         
     case '-h':

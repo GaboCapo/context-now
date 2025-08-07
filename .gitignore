@@ -30,3 +30,16 @@ tools/context-tracker/issue-relations.json
 
 # Keep templates
 !tools/context-tracker/*.template.json
+
+# Context-Now (auto-generated - do not remove)
+context-now/
+context-now-logs/
+tools/context-now/*.json
+!tools/context-now/*.template.json
+tools/context-tracker/*.json
+!tools/context-tracker/*.template.json
+
+# Prevent accidental context-now repository commits
+.context-now/
+context-now/.git/
+tools/context-now/.git/
