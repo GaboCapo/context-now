@@ -78,16 +78,56 @@ cn -d mein-projekt
 2.  **Ins Projekt-Verzeichnis wechseln**:
     `cd ~/Code/mein-projekt`
 
-3.  **Status prüfen**:
+3.  **Status prüfen und Empfehlungen erhalten**:
     `npm run context-now` oder `cn -s`
+    
+    Das Tool zeigt Ihnen:
+    - Aktueller Branch-Status
+    - Offene Issues nach Priorität (kritisch → hoch → normal)
+    - Aktive Branches und deren Sync-Status
+    - **🎯 Intelligente Empfehlungen** basierend auf Ihrem Projektstatus
 
-4.  **JSON-Dateien bearbeiten**:
-    Halte `issues.json` und andere Dateien aktuell.
-    `vim tools/context-tracker/issues.json`
+4.  **Den Empfehlungen folgen**:
+    Context-Now analysiert Ihr Projekt und schlägt die wichtigsten nächsten Schritte vor:
+    - Kritische Sicherheitsprobleme zur sofortigen Behebung
+    - Uncommitted Changes zum Stashen oder Committen
+    - Branches die aufgeräumt werden müssen
+    - Issues ohne Branches die Aufmerksamkeit benötigen
 
 5.  **Synchronisieren**:
     Nach `git` Operationen wie `pull` oder `checkout` solltest du den Status synchronisieren:
     `npm run context-now:sync` oder `cn sync`
+
+---
+
+## 🎯 Intelligente Empfehlungen
+
+Die Empfehlungs-Engine von Context-Now priorisiert Ihre Arbeit basierend auf:
+
+### Prioritätsstufen
+1. **🚨 Kritische Issues**: Sicherheitslücken, Systemausfälle
+2. **⚠️ Hohe Priorität**: Wichtige Features, größere Bugs
+3. **📋 Normale Priorität**: Reguläre Aufgaben und Verbesserungen
+4. **🔄 Wartung**: Branch-Bereinigung, Synchronisation
+
+### Beispiel-Empfehlungen
+```
+✅ Empfehlungen:
+
+🚨 7 KRITISCHE Issues offen:
+   ● #146: [SECURITY] Sicherheits-Audit implementieren
+     → git checkout -b bugfix/critical-issue-146
+
+📋 Nächste Schritte:
+1. Uncommitted Changes sichern:
+   → git stash push -m "WIP: aktueller-branch"
+2. Kritisches Issue #146 sofort bearbeiten
+   → git checkout -b bugfix/critical-issue-146
+3. Remote-Branches aufräumen
+   → git remote prune origin
+```
+
+Alle Befehle sind kopier-bereit für sofortige Ausführung!
 
 ---
 

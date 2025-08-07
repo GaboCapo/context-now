@@ -16,10 +16,15 @@ An intelligent tool for managing Git project contexts, issues, branches and pull
 ## ✨ Features
 
 - **Git Integration**: Live synchronization with local and remote branches, automatic branch-to-issue mapping
-- **Issue & PR Tracking**: Manage issues and pull requests directly from the terminal
-- **Smart Recommendations**: Context-aware work recommendations based on issue relationships
+- **Issue & PR Tracking**: Manage issues and pull requests directly from the terminal with gh CLI integration
+- **🎯 Intelligent Recommendations**: Priority-based action suggestions with copy-paste ready commands
+  - Detects critical issues and security problems
+  - Warns about uncommitted changes
+  - Suggests branch cleanup strategies
+  - Provides context-aware next steps
 - **Developer Handover**: Special modes for seamless team handovers
 - **Multi-Project Support**: Manage multiple Git projects with one tool
+- **SSH Config Support**: Works with custom SSH configs (e.g., `git@github.com-work:owner/repo`)
 - **Symlink-based**: Templates and scripts are shared, data remains project-specific
 
 ## 🔧 Git Provider Compatibility
@@ -89,6 +94,63 @@ cn -s my-project           # Specific project
 ```bash
 cn -d my-project
 ```
+
+## 📊 Example Output
+
+Here's what Context-Now shows you when running `cn -s` or `npm run context-now`:
+
+```
+🔄 Prüfe Status...
+  → Versuche Issues über gh CLI zu holen...
+  ✓ 63 Issues über gh CLI abgerufen
+  ✓ 92 PRs über gh CLI abgerufen
+
+📊 Projektübersicht:
+- 🌿 Aktueller Branch: develop
+- ⚠️  Uncommitted Changes vorhanden!
+
+📌 Status:
+- 20 offene Issues (7 kritisch, 3 hoch)
+- 15 aktive Branches (18 total)
+  └─ 3 lokal, 17 auf GitHub
+- 1 offene Pull Requests
+
+📋 Issues im Detail:
+
+🚨 Kritische Issues:
+  ● #146 - 🔐 [SECURITY] Implement Comprehensive Security Audit
+    Erstellt vor 2 Tagen • Nicht zugewiesen
+  ● #143 - 🚌 [ARCHITECTURE] Implement Event-Bus System
+    Erstellt vor 3 Tagen • Zugewiesen an: dev-team
+  ● #138 - 🏗️ [EPIC] Architecture Redesign Required
+    Erstellt vor 5 Tagen • Nicht zugewiesen
+
+✅ Empfehlungen:
+
+🚨 7 KRITISCHE Issues offen:
+   ● #146: [SECURITY] Implement Comprehensive Security Audit
+     → git checkout -b bugfix/critical-issue-146
+   ● #143: [ARCHITECTURE] Implement Event-Bus System
+     → git checkout -b bugfix/critical-issue-143
+
+📋 Nächste Schritte:
+1. Uncommitted Changes sichern:
+   → git stash push -m "WIP: develop"
+2. Kritisches Issue #146 sofort bearbeiten
+   → git checkout -b bugfix/critical-issue-146
+3. 14 Remote-Branches lokal auschecken oder löschen
+   → git remote prune origin
+```
+
+### 🎯 Key Benefits
+
+The intelligent recommendation engine provides:
+
+- **Priority-based actions**: Critical issues first, then high priority
+- **Copy-paste ready commands**: All git commands ready to execute
+- **Context awareness**: Detects uncommitted changes, branch states
+- **Branch-Issue mapping**: Automatic detection and linking suggestions
+- **Clean-up suggestions**: Identifies stale and orphaned branches
 
 ## 🗑️ Uninstallation
 
