@@ -748,14 +748,50 @@ async function showStatus() {
     if (issues.length > 0 && issues.filter(i => (i.status === 'open' || i.state === 'open')).length > 0) {
         console.log(`\n${colors.bright}📋 Issues im Detail:${colors.reset}`);
         
-        // Kritische Issues
+        // Kritische Issues mit Gruppierung
         const criticalIssues = issues.filter(i => i.priority === 'critical' && (i.status === 'open' || i.state === 'open'));
         if (criticalIssues.length > 0) {
             console.log(`\n${colors.red}🚨 Kritische Issues:${colors.reset}`);
+            
+            // Erkenne Gruppen von zusammenhängenden Issues (z.B. Case Management)
+            const issueGroups = {};
             criticalIssues.forEach(issue => {
-                const age = Math.floor((new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
-                console.log(`  ${colors.red}●${colors.reset} ${issue.id || `#${issue.number}`} - ${issue.title}`);
-                console.log(`    ${colors.dim}Erstellt vor ${age} Tagen${issue.assignee ? ` • Zugewiesen an: ${issue.assignee}` : ' • Nicht zugewiesen'}${colors.reset}`);
+                const title = issue.title.toLowerCase();
+                // Suche nach gemeinsamen Schlüsselwörtern
+                if (title.includes('case management') || title.includes('case-management')) {
+                    if (!issueGroups['Case Management']) issueGroups['Case Management'] = [];
+                    issueGroups['Case Management'].push(issue);
+                } else if (title.includes('security') || title.includes('audit')) {
+                    if (!issueGroups['Security']) issueGroups['Security'] = [];
+                    issueGroups['Security'].push(issue);
+                } else if (title.includes('event') || title.includes('bus')) {
+                    if (!issueGroups['Event System']) issueGroups['Event System'] = [];
+                    issueGroups['Event System'].push(issue);
+                } else {
+                    if (!issueGroups['Andere']) issueGroups['Andere'] = [];
+                    issueGroups['Andere'].push(issue);
+                }
+            });
+            
+            // Zeige gruppierte Issues
+            Object.entries(issueGroups).forEach(([group, groupIssues]) => {
+                if (groupIssues.length > 2) {
+                    console.log(`  ${colors.yellow}📁 ${group} (${groupIssues.length} zusammenhängende Issues):${colors.reset}`);
+                }
+                
+                groupIssues.forEach(issue => {
+                    const age = Math.floor((new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
+                    const issueId = issue.id || `#${issue.number}`;
+                    const isInPR = issuesInPRs.has(issueId);
+                    
+                    const indent = groupIssues.length > 2 ? '    ' : '  ';
+                    if (isInPR) {
+                        console.log(`${indent}${colors.green}●${colors.reset} ${issueId} - ${issue.title} ${colors.green}[IN PR]${colors.reset}`);
+                    } else {
+                        console.log(`${indent}${colors.red}●${colors.reset} ${issueId} - ${issue.title}`);
+                    }
+                    console.log(`${indent}  ${colors.dim}Erstellt vor ${age} Tagen${issue.assignee ? ` • Zugewiesen an: ${issue.assignee}` : ' • Nicht zugewiesen'}${colors.reset}`);
+                });
             });
         }
         
@@ -891,15 +927,38 @@ async function showStatus() {
         }
     }
     
-    // PULL REQUESTS
+    // PULL REQUESTS mit Issue-Verknüpfung
+    const issuesInPRs = new Set();
     if (prs.length > 0) {
         const openPRs = prs.filter(pr => (pr.status === 'open' || pr.state === 'open'));
         if (openPRs.length > 0) {
             console.log(`\n${colors.bright}🔀 Offene Pull Requests:${colors.reset}`);
             openPRs.forEach(pr => {
                 const age = Math.floor((new Date() - new Date(pr.created_at)) / (1000 * 60 * 60 * 24));
+                
+                // Suche nach Issue-Referenzen im PR-Titel und Body
+                const prText = `${pr.title} ${pr.body || ''}`;
+                const issueMatches = prText.match(/#(\d+)/g) || [];
+                const relatedIssues = issueMatches.map(m => m.replace('#', ''));
+                
+                relatedIssues.forEach(issueNum => {
+                    issuesInPRs.add(`#${issueNum}`);
+                });
+                
                 console.log(`  ${colors.magenta}●${colors.reset} PR ${pr.id}: ${pr.title}`);
                 console.log(`    ${colors.dim}${pr.branch} → ${pr.base} • Von ${pr.author} • Vor ${age} Tagen${colors.reset}`);
+                
+                if (relatedIssues.length > 0) {
+                    const issuesList = relatedIssues.map(num => {
+                        const issue = issues.find(i => i.id === `#${num}` || i.number === parseInt(num));
+                        if (issue) {
+                            return `#${num} (${issue.title})`;
+                        }
+                        return `#${num}`;
+                    }).join(', ');
+                    console.log(`    ${colors.green}Löst Issues: ${issuesList}${colors.reset}`);
+                }
+                
                 if (pr.draft) {
                     console.log(`    ${colors.yellow}[DRAFT]${colors.reset}`);
                 }
@@ -997,13 +1056,18 @@ async function showStatus() {
                 console.log(`${colors.red}🚨 ${advancedResults.criticalIssues.length} KRITISCHE Issues offen:${colors.reset}`);
                 advancedResults.criticalIssues.slice(0, 3).forEach(issue => {
                     const issueNumber = (issue.id || `#${issue.number}`).replace('#', '');
+                    const issueId = issue.id || `#${issue.number}`;
                     const currentBranchPattern = new RegExp(`(issue[- ]?${issueNumber}|#${issueNumber})`, 'i');
                     const isWorkingOnIssue = currentBranchPattern.test(currentBranch);
+                    const isInPR = issuesInPRs.has(issueId);
                     
-                    if (isWorkingOnIssue) {
-                        console.log(`   ${colors.green}●${colors.reset} ${issue.id || `#${issue.number}`}: ${issue.title} ${colors.green}[IN ARBEIT auf diesem Branch]${colors.reset}`);
+                    if (isInPR) {
+                        console.log(`   ${colors.green}●${colors.reset} ${issueId}: ${issue.title} ${colors.green}[BEREITS IN PR]${colors.reset}`);
+                        console.log(`     ${colors.cyan}→ PR reviewen und mergen${colors.reset}`);
+                    } else if (isWorkingOnIssue) {
+                        console.log(`   ${colors.green}●${colors.reset} ${issueId}: ${issue.title} ${colors.green}[IN ARBEIT auf diesem Branch]${colors.reset}`);
                     } else {
-                        console.log(`   ${colors.red}●${colors.reset} ${issue.id || `#${issue.number}`}: ${issue.title}`);
+                        console.log(`   ${colors.red}●${colors.reset} ${issueId}: ${issue.title}`);
                         const suggestedBranch = `bugfix/critical-issue-${issueNumber}`;
                         console.log(`     ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
                     }
@@ -1028,15 +1092,45 @@ async function showStatus() {
             // Zeige konkrete nächste Schritte
             console.log(`${colors.bright}📋 Nächste Schritte:${colors.reset}`);
             
-            // 1. Uncommitted Changes
-            if (gitStatus.hasChanges) {
-                console.log(`${colors.red}1. Uncommitted Changes sichern:${colors.reset}`);
-                console.log(`   ${colors.cyan}→ git stash push -m "WIP: ${currentBranch}"${colors.reset}`);
+            let stepCount = 1;
+            
+            // Prüfe ob es PRs gibt, die gemergt werden sollten
+            const openPRs = prs.filter(pr => (pr.status === 'open' || pr.state === 'open'));
+            const prsWithCriticalIssues = openPRs.filter(pr => {
+                const prText = `${pr.title} ${pr.body || ''}`;
+                const issueMatches = prText.match(/#(\d+)/g) || [];
+                return issueMatches.some(match => {
+                    const issueNum = match.replace('#', '');
+                    const issue = issues.find(i => (i.id === `#${issueNum}` || i.number === parseInt(issueNum)) && i.priority === 'critical');
+                    return issue !== undefined;
+                });
+            });
+            
+            // 1. PRs mit kritischen Issues priorisieren
+            if (prsWithCriticalIssues.length > 0) {
+                console.log(`${colors.green}${stepCount}. Pull Requests mit kritischen Issues reviewen & mergen:${colors.reset}`);
+                prsWithCriticalIssues.slice(0, 2).forEach(pr => {
+                    console.log(`   PR ${pr.id}: ${pr.title}`);
+                });
+                console.log(`   ${colors.cyan}→ gh pr list --state open${colors.reset}`);
+                stepCount++;
             }
             
-            // 2. Kritisches Issue bearbeiten
-            if (advancedResults.criticalIssues && advancedResults.criticalIssues.length > 0) {
-                const issue = advancedResults.criticalIssues[0];
+            // 2. Uncommitted Changes
+            if (gitStatus.hasChanges) {
+                console.log(`${colors.yellow}${stepCount}. Uncommitted Changes sichern:${colors.reset}`);
+                console.log(`   ${colors.cyan}→ git stash push -m "WIP: ${currentBranch}"${colors.reset}`);
+                stepCount++;
+            }
+            
+            // 3. Kritisches Issue bearbeiten (nur wenn nicht in PR)
+            const criticalIssuesNotInPR = (advancedResults.criticalIssues || []).filter(issue => {
+                const issueId = issue.id || `#${issue.number}`;
+                return !issuesInPRs.has(issueId);
+            });
+            
+            if (criticalIssuesNotInPR.length > 0) {
+                const issue = criticalIssuesNotInPR[0];
                 const issueNumber = (issue.id || `#${issue.number}`).replace('#', '');
                 
                 // Prüfe ob das Issue bereits auf dem aktuellen Branch bearbeitet wird
@@ -1065,16 +1159,18 @@ async function showStatus() {
                     }
                 } else {
                     // Neuen Branch für das Issue vorschlagen
-                    console.log(`${colors.red}2. Kritisches Issue ${issue.id || `#${issue.number}`} sofort bearbeiten${colors.reset}`);
+                    console.log(`${colors.red}${stepCount}. Kritisches Issue ${issue.id || `#${issue.number}`} sofort bearbeiten${colors.reset}`);
                     const suggestedBranch = `bugfix/critical-issue-${issueNumber}`;
                     console.log(`   ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
                 }
+                stepCount++;
             }
             
-            // 3. Branch aufräumen
+            // 4. Branch aufräumen
             if (branches.remoteOnly.length > 10) {
-                console.log(`${colors.yellow}3. ${branches.remoteOnly.length} Remote-Branches lokal auschecken oder löschen${colors.reset}`);
+                console.log(`${colors.yellow}${stepCount}. ${branches.remoteOnly.length} Remote-Branches lokal auschecken oder löschen${colors.reset}`);
                 console.log(`   ${colors.cyan}→ git remote prune origin${colors.reset}`);
+                stepCount++;
             }
         } else {
             console.log(`${colors.green}✅ Keine kritischen Probleme gefunden!${colors.reset}`);
