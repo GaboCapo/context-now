@@ -691,7 +691,35 @@ async function showStatus() {
     
     // PROJEKTÜBERSICHT
     console.log(`\n${colors.bright}📊 Projektübersicht:${colors.reset}`);
-    console.log(`- 🌿 Aktueller Branch: ${colors.green}${currentBranch}${colors.reset}`);
+    
+    // Prüfe ob aktueller Branch mit einem Issue verknüpft ist
+    let currentBranchIssue = null;
+    const issuePatterns = [
+        /issue[- ](\d+)/i,
+        /#(\d+)/,
+        /(\d+)-/
+    ];
+    
+    for (const pattern of issuePatterns) {
+        const match = currentBranch.match(pattern);
+        if (match) {
+            currentBranchIssue = match[1];
+            break;
+        }
+    }
+    
+    if (currentBranchIssue) {
+        const relatedIssue = issues.find(i => 
+            (i.id === `#${currentBranchIssue}` || i.number === parseInt(currentBranchIssue))
+        );
+        if (relatedIssue) {
+            console.log(`- 🌿 Aktueller Branch: ${colors.green}${currentBranch}${colors.reset} ${colors.dim}(arbeitet an Issue #${currentBranchIssue}: ${relatedIssue.title})${colors.reset}`);
+        } else {
+            console.log(`- 🌿 Aktueller Branch: ${colors.green}${currentBranch}${colors.reset} ${colors.dim}(Issue #${currentBranchIssue})${colors.reset}`);
+        }
+    } else {
+        console.log(`- 🌿 Aktueller Branch: ${colors.green}${currentBranch}${colors.reset}`);
+    }
     
     // Git Status
     if (gitStatus.hasChanges) {
@@ -968,9 +996,17 @@ async function showStatus() {
             if (advancedResults.criticalIssues && advancedResults.criticalIssues.length > 0) {
                 console.log(`${colors.red}🚨 ${advancedResults.criticalIssues.length} KRITISCHE Issues offen:${colors.reset}`);
                 advancedResults.criticalIssues.slice(0, 3).forEach(issue => {
-                    console.log(`   ${colors.red}●${colors.reset} ${issue.id || `#${issue.number}`}: ${issue.title}`);
-                    const suggestedBranch = `bugfix/critical-issue-${(issue.id || `#${issue.number}`).replace('#', '')}`;
-                    console.log(`     ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
+                    const issueNumber = (issue.id || `#${issue.number}`).replace('#', '');
+                    const currentBranchPattern = new RegExp(`(issue[- ]?${issueNumber}|#${issueNumber})`, 'i');
+                    const isWorkingOnIssue = currentBranchPattern.test(currentBranch);
+                    
+                    if (isWorkingOnIssue) {
+                        console.log(`   ${colors.green}●${colors.reset} ${issue.id || `#${issue.number}`}: ${issue.title} ${colors.green}[IN ARBEIT auf diesem Branch]${colors.reset}`);
+                    } else {
+                        console.log(`   ${colors.red}●${colors.reset} ${issue.id || `#${issue.number}`}: ${issue.title}`);
+                        const suggestedBranch = `bugfix/critical-issue-${issueNumber}`;
+                        console.log(`     ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
+                    }
                 });
                 console.log('');
             }
@@ -1001,9 +1037,38 @@ async function showStatus() {
             // 2. Kritisches Issue bearbeiten
             if (advancedResults.criticalIssues && advancedResults.criticalIssues.length > 0) {
                 const issue = advancedResults.criticalIssues[0];
-                console.log(`${colors.red}2. Kritisches Issue ${issue.id || `#${issue.number}`} sofort bearbeiten${colors.reset}`);
-                const suggestedBranch = `bugfix/critical-issue-${(issue.id || `#${issue.number}`).replace('#', '')}`;
-                console.log(`   ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
+                const issueNumber = (issue.id || `#${issue.number}`).replace('#', '');
+                
+                // Prüfe ob das Issue bereits auf dem aktuellen Branch bearbeitet wird
+                const currentBranchPattern = new RegExp(`(issue[- ]?${issueNumber}|#${issueNumber})`, 'i');
+                const isWorkingOnIssue = currentBranchPattern.test(currentBranch);
+                
+                if (isWorkingOnIssue) {
+                    // Issue wird bereits bearbeitet - PR vorschlagen
+                    console.log(`${colors.green}2. Issue ${issue.id || `#${issue.number}`} wird bereits auf diesem Branch bearbeitet${colors.reset}`);
+                    console.log(`   Branch: ${currentBranch}`);
+                    
+                    // Prüfe auf viele Änderungen
+                    const { execSync } = require('child_process');
+                    try {
+                        const ahead = execSync('git rev-list --count HEAD@{upstream}..HEAD 2>/dev/null || echo "0"', { encoding: 'utf8' }).trim();
+                        const changedFiles = execSync('git diff --name-only HEAD@{upstream}..HEAD 2>/dev/null | wc -l || echo "0"', { encoding: 'utf8' }).trim();
+                        
+                        if (parseInt(ahead) > 10 || parseInt(changedFiles) > 50) {
+                            console.log(`   ${colors.yellow}${ahead} Commits, ${changedFiles} Dateien geändert${colors.reset}`);
+                            console.log(`   ${colors.cyan}→ Pull Request erstellen: gh pr create --title "Fix: #${issueNumber}"${colors.reset}`);
+                        } else {
+                            console.log(`   ${colors.cyan}→ Weiter arbeiten oder PR erstellen: gh pr create${colors.reset}`);
+                        }
+                    } catch (e) {
+                        console.log(`   ${colors.cyan}→ Pull Request erstellen: gh pr create${colors.reset}`);
+                    }
+                } else {
+                    // Neuen Branch für das Issue vorschlagen
+                    console.log(`${colors.red}2. Kritisches Issue ${issue.id || `#${issue.number}`} sofort bearbeiten${colors.reset}`);
+                    const suggestedBranch = `bugfix/critical-issue-${issueNumber}`;
+                    console.log(`   ${colors.cyan}→ git checkout -b ${suggestedBranch}${colors.reset}`);
+                }
             }
             
             // 3. Branch aufräumen
