@@ -12,7 +12,9 @@ The Model Context Protocol (MCP) is an open protocol that enables AI assistants 
 npm install -g @gabocapo/context-now
 ```
 
-### 2. Configure Claude Desktop
+### 2. Configure Your AI Assistant
+
+#### For Claude Desktop
 
 Add to your Claude Desktop config file:
 
@@ -35,9 +37,47 @@ Add to your Claude Desktop config file:
 }
 ```
 
-### 3. Restart Claude Desktop
+#### For Claude Code (VS Code Extension)
 
-After adding the configuration, restart Claude Desktop to load the MCP server.
+Add to your VS Code settings:
+
+1. Open VS Code Command Palette (`Cmd/Ctrl + Shift + P`)
+2. Search for "Claude Code: Open Settings (UI)"
+3. Navigate to MCP Servers section
+4. Add Context-Now configuration:
+
+```json
+{
+  "claude.mcpServers": {
+    "context-now": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gabocapo/context-now",
+        "mcp-server"
+      ]
+    }
+  }
+}
+```
+
+Or directly edit `settings.json`:
+
+```json
+{
+  "claude.mcpServers": {
+    "context-now": {
+      "command": "npx",
+      "args": ["-y", "@gabocapo/context-now", "mcp-server"]
+    }
+  }
+}
+```
+
+### 3. Restart Your Application
+
+- **Claude Desktop**: Restart the application
+- **Claude Code**: Reload VS Code window (`Cmd/Ctrl + R`)
 
 ## 📚 Available Resources
 
@@ -243,6 +283,51 @@ Recommendations:
 2. Prioritize the 3 high-priority issues
 3. Triage unlabeled issues"
 ```
+
+## 🧪 Testing Status
+
+### Platform Compatibility
+
+| Platform | Version | Status | Test Date | Notes |
+|----------|---------|--------|-----------|-------|
+| Claude Desktop | 1.0+ | 🟡 Testing | Dec 2024 | Awaiting user feedback |
+| Claude Code | 0.1.0+ | 🟡 Testing | Dec 2024 | VS Code integration |
+| macOS | 12+ | 🟡 Testing | - | Primary development platform |
+| Windows | 10/11 | 🟠 Untested | - | Should work, needs testing |
+| Linux | Ubuntu 20+ | 🟡 Testing | - | Tested on Ubuntu |
+
+### Feature Testing
+
+| Feature | Claude Desktop | Claude Code | Status |
+|---------|---------------|-------------|--------|
+| Resources (Read) | 🟡 Testing | 🟡 Testing | Basic functionality works |
+| Tools (Write) | 🟡 Testing | 🟡 Testing | Requires permissions |
+| Prompts | 🟡 Testing | 🟡 Testing | All 10 prompts defined |
+| Security | ✅ Verified | ✅ Verified | No shell execution |
+| Performance | 🟡 Testing | 🟡 Testing | <100ms response time |
+
+### Known Issues
+
+1. **Windows**: Path separators may need adjustment
+2. **Claude Code**: MCP settings UI still in development
+3. **Both**: First-time setup requires restart
+
+### Help Us Test!
+
+We need your help testing Context-Now MCP integration:
+
+1. **Install and Configure** following the guide above
+2. **Test Basic Commands**:
+   ```
+   "Show me all my projects"
+   "What's the current project status?"
+   "Show critical issues"
+   ```
+3. **Report Issues** at [GitHub Issues](https://github.com/GaboCapo/context-now/issues) with:
+   - Platform (Claude Desktop/Code)
+   - OS and version
+   - Error messages
+   - What you were trying to do
 
 ## 🐛 Troubleshooting
 

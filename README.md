@@ -17,6 +17,7 @@ An intelligent tool for managing Git project contexts, issues, branches and pull
 
 ## ✨ Features
 
+- **🤖 AI-Native (MCP)**: First-class integration with Claude Desktop & Claude Code via Model Context Protocol
 - **Git Integration**: Live synchronization with local and remote branches, automatic branch-to-issue mapping
 - **Issue & PR Tracking**: Manage issues and pull requests directly from the terminal with gh CLI integration
 - **🎯 Intelligent Recommendations**: Priority-based action suggestions with copy-paste ready commands
@@ -27,7 +28,18 @@ An intelligent tool for managing Git project contexts, issues, branches and pull
 - **Developer Handover**: Special modes for seamless team handovers
 - **Multi-Project Support**: Manage multiple Git projects with one tool
 - **SSH Config Support**: Works with custom SSH configs (e.g., `git@github.com-work:owner/repo`)
-- **Symlink-based**: Templates and scripts are shared, data remains project-specific
+- **🔒 Security-First**: No shell execution, injection-proof design
+
+## 🤖 AI Assistant Compatibility (MCP)
+
+| Platform | Status | Configuration | Notes |
+|----------|--------|---------------|-------|
+| Claude Desktop | 🟡 Testing | [MCP Guide](docs/MCP-INTEGRATION.md) | Full MCP support |
+| Claude Code | 🟡 Testing | [MCP Guide](docs/MCP-INTEGRATION.md) | VS Code extension |
+| Continue.dev | 🔵 Planned | Coming soon | MCP planned |
+| Cody | 🔵 Planned | - | Evaluating |
+| GitHub Copilot | ⚫ N/A | - | No MCP |
+| Cursor | ⚫ N/A | - | No MCP |
 
 ## 🔧 Git Provider Compatibility
 

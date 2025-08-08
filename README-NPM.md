@@ -67,6 +67,21 @@ npm test
 # ✅ Command injection prevention
 ```
 
+## 🤖 AI Assistant Compatibility
+
+### MCP (Model Context Protocol) Support
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Claude Desktop | 🟡 Testing | Full MCP support, awaiting field tests |
+| Claude Code (VS Code) | 🟡 Testing | MCP via VS Code extension |
+| Continue.dev | 🔵 Planned | MCP support coming soon |
+| Cody | 🔵 Planned | Evaluating MCP integration |
+| GitHub Copilot | ⚫ N/A | No MCP support |
+| Cursor | ⚫ N/A | No MCP support |
+
+> **Note**: MCP integration is brand new (December 2024). We're actively testing with Claude Desktop and Claude Code. Please report your experience!
+
 ## ✨ Key Features
 
 ### 🎯 Intelligent Recommendations
