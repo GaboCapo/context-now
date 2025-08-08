@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "context-now": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gabocapo/context-now",
+        "mcp-server"
+      ],
+      "env": {
+        "MCP_MODE": "1"
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+
+/**
+ * Context-Now MCP Server Binary
+ * =============================
+ * Starts the MCP server for AI assistant integration
+ */
+
+'use strict';
+
+// Set process title
+process.title = 'context-now-mcp';
+
+// Check if running in MCP mode
+const isMCPMode = process.argv.includes('--mcp') || 
+                  process.env.MCP_MODE === '1' ||
+                  process.argv.includes('stdio');
+
+if (!isMCPMode) {
+    console.log(`
+Context-Now MCP Server
+======================
+
+This starts the Model Context Protocol server for AI assistant integration.
+
+Usage:
+  context-now-mcp          # Start MCP server
+  npx @gabocapo/context-now mcp-server
+
+For Claude Desktop, add to config:
+  {
+    "mcpServers": {
+      "context-now": {
+        "command": "npx",
+        "args": ["@gabocapo/context-now", "mcp-server"]
+      }
+    }
+  }
+
+Starting MCP server...
+`);
+}
+
+// Start server
+try {
+    const MCPServer = require('../lib/mcp/server');
+    const server = new MCPServer();
+    
+    server.start().catch(error => {
+        console.error('MCP Server error:', error);
+        process.exit(1);
+    });
+} catch (error) {
+    console.error('Failed to start MCP server:', error.message);
+    console.error('Make sure @modelcontextprotocol/sdk is installed:');
+    console.error('  npm install @modelcontextprotocol/sdk');
+    process.exit(1);
+}
