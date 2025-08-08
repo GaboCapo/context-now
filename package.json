@@ -1,18 +1,58 @@
 {
-  "name": "context-now",
-  "version": "2.0.0",
-  "description": "Multi-project context tracker and management tool",
-  "main": "context-now.js",
+  "name": "@gabocapo/context-now",
+  "version": "3.0.0",
+  "description": "Secure Git Project Context Tracker - Track issues, PRs, and branches across projects",
+  "main": "index.js",
   "bin": {
-    "context-now": "./context-now.js"
+    "cn": "./bin/cn",
+    "context-now": "./bin/cn"
   },
   "scripts": {
-    "test": "node test/context-now.test.js",
-    "context": "node tools/context-tracker/context-tracker.js status",
-    "context:simple": "node tools/context-tracker/context-tracker.js simple",
-    "context:basic": "node tools/context-tracker/context-tracker.js simple",
-    "install-global": "npm link",
-    "uninstall-global": "npm unlink"
+    "test": "node test/security.test.js",
+    "prepublishOnly": "npm run test",
+    "postinstall": "node scripts/postinstall.js || true"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "tools/",
+    "index.js",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "git",
+    "github",
+    "context",
+    "tracker",
+    "issues",
+    "pull-requests",
+    "project-management",
+    "cli",
+    "developer-tools"
+  ],
+  "author": "GaboCapo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GaboCapo/context-now.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GaboCapo/context-now/issues"
+  },
+  "homepage": "https://github.com/GaboCapo/context-now#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "type": "commonjs"
 }

@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+
+/**
+ * Context-Now CLI Binary
+ * ======================
+ * NPM-kompatibler Entry Point
+ */
+
+// Aktiviere strict mode für bessere Sicherheit
+'use strict';
+
+// Setze Prozess-Titel für bessere Identifikation
+process.title = 'context-now';
+
+// Lade die CLI mit Fehlerbehandlung
+try {
+    require('../lib/cli');
+} catch (error) {
+    // Sichere Fehlerausgabe ohne Stack-Traces in Produktion
+    if (process.env.NODE_ENV === 'development') {
+        console.error('Error:', error);
+    } else {
+        console.error(`Error: ${error.message}`);
+        console.error('Run with NODE_ENV=development for more details');
+    }
+    process.exit(1);
+}
