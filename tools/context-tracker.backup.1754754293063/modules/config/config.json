@@ -1,0 +1,57 @@
+{
+  "staleThresholdDays": 30,
+  "criticalStaleThresholdDays": 14,
+  
+  "duplicateResolution": {
+    "weightCommitCount": 0.7,
+    "weightRecency": 0.3,
+    "autoMergeThreshold": 0.8,
+    "minCommitDifference": 3
+  },
+  
+  "orphanedBranches": {
+    "action": "prompt",
+    "issuePrefix": "Restored: ",
+    "gracePeriodDays": 7
+  },
+  
+  "issuePriorities": {
+    "CRITICAL": 4,
+    "HIGH": 3,
+    "MEDIUM": 2,
+    "LOW": 1,
+    "NONE": 0
+  },
+  
+  "progressMetrics": {
+    "readyForPRThreshold": {
+      "minCommits": 3,
+      "minChangedFiles": 1,
+      "minLinesChanged": 50
+    },
+    "significantProgressThreshold": {
+      "commits": 10,
+      "linesChanged": 200
+    }
+  },
+  
+  "warnings": {
+    "unlinkedBranchCommitThreshold": 5,
+    "multipleBranchesPerIssueThreshold": 2,
+    "priorityMismatchLevels": 2
+  },
+  
+  "automation": {
+    "enabled": false,
+    "autoDeleteStaleBranches": false,
+    "autoCreateIssuesForOrphans": false,
+    "requireConfirmation": true
+  },
+  
+  "output": {
+    "showEmojis": true,
+    "verboseMode": false,
+    "groupByPriority": true,
+    "maxRecommendations": 10
+  }
+}

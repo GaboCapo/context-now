@@ -532,6 +532,125 @@ function showProjectStatus(projectName) {
     }
 }
 
+// Run doctor command
+function runDoctorCommand() {
+    try {
+        const runDoctor = require('./lib/commands/doctor');
+        runDoctor({ verbose: false });
+    } catch (e) {
+        console.error(`${colors.red}Fehler beim Ausführen der Diagnose:${colors.reset}`, e.message);
+    }
+}
+
+// Show storage information
+function showStorageInfo() {
+    const projects = loadProjects();
+    const storage = require('./lib/commands/storage');
+    
+    console.log(`${colors.bright}${colors.cyan}📦 Storage-Konfiguration${colors.reset}\n`);
+    
+    if (Object.keys(projects).length === 0) {
+        console.log(`${colors.yellow}Keine Projekte verbunden${colors.reset}`);
+        return;
+    }
+    
+    for (const [name, project] of Object.entries(projects)) {
+        const mode = storage.getStorageMode(name, project.path);
+        const dataDir = storage.getDataDirectory(name, project.path, mode);
+        
+        console.log(`${colors.green}${name}${colors.reset}`);
+        console.log(`  Modus: ${mode}`);
+        
+        if (typeof dataDir === 'string') {
+            console.log(`  Verzeichnis: ${dataDir}`);
+        } else {
+            console.log(`  Config: ${dataDir.config}`);
+            console.log(`  Runtime: ${dataDir.runtime}`);
+        }
+        console.log('');
+    }
+    
+    console.log(`${colors.dim}Verfügbare Modi:${colors.reset}`);
+    console.log(`  ${colors.green}embedded${colors.reset} - Dateien im Projekt (mit Symlinks)`);
+    console.log(`  ${colors.green}local${colors.reset} - Alle Dateien in ~/.config/context-now`);
+    console.log(`  ${colors.green}hybrid${colors.reset} - Config lokal, Cache im Projekt`);
+    console.log('');
+    console.log(`${colors.dim}Modus ändern: cn --storage <modus> <projekt>${colors.reset}`);
+}
+
+// Set storage mode for current project
+function setStorageMode(mode) {
+    const projects = loadProjects();
+    const currentDir = process.cwd();
+    
+    // Find current project
+    let currentProject = null;
+    for (const [name, data] of Object.entries(projects)) {
+        if (data.path === currentDir) {
+            currentProject = name;
+            break;
+        }
+    }
+    
+    if (!currentProject) {
+        console.error(`${colors.red}Kein Projekt im aktuellen Verzeichnis gefunden${colors.reset}`);
+        return;
+    }
+    
+    const storage = require('./lib/commands/storage');
+    
+    try {
+        const currentMode = storage.getStorageMode(currentProject, currentDir);
+        
+        if (currentMode === mode) {
+            console.log(`${colors.yellow}Projekt '${currentProject}' verwendet bereits Modus '${mode}'${colors.reset}`);
+            return;
+        }
+        
+        console.log(`${colors.cyan}Ändere Storage-Modus für '${currentProject}' von '${currentMode}' zu '${mode}'...${colors.reset}`);
+        
+        // Migrate if necessary
+        storage.migrateStorage(currentProject, currentMode, mode).then(() => {
+            console.log(`${colors.green}✅ Storage-Modus erfolgreich geändert!${colors.reset}`);
+        }).catch(err => {
+            console.error(`${colors.red}Fehler bei der Migration:${colors.reset}`, err.message);
+        });
+        
+    } catch (e) {
+        console.error(`${colors.red}Fehler:${colors.reset}`, e.message);
+    }
+}
+
+// Migrate project storage
+function migrateProjectStorage(projectName) {
+    const projects = loadProjects();
+    
+    if (!projectName) {
+        console.error(`${colors.red}Projekt-Name erforderlich${colors.reset}`);
+        console.log(`Verwendung: cn --migrate-storage <projekt-name>`);
+        return;
+    }
+    
+    if (!projects[projectName]) {
+        console.error(`${colors.red}Projekt '${projectName}' nicht gefunden${colors.reset}`);
+        listProjects();
+        return;
+    }
+    
+    const storage = require('./lib/commands/storage');
+    const project = projects[projectName];
+    const currentMode = storage.getStorageMode(projectName, project.path);
+    
+    console.log(`${colors.cyan}Aktueller Modus für '${projectName}': ${currentMode}${colors.reset}`);
+    console.log(`Wählen Sie den Ziel-Modus:`);
+    console.log(`  1) local - Alle Dateien in ~/.config/context-now`);
+    console.log(`  2) embedded - Dateien im Projekt`);
+    console.log(`  3) hybrid - Config lokal, Cache im Projekt`);
+    
+    // In a real implementation, this would be interactive
+    console.log(`${colors.yellow}Verwenden Sie: cn --storage <modus>${colors.reset}`);
+}
+
 // Run structure command
 function runStructureCommand(projectName) {
     const projects = loadProjects();
@@ -820,6 +939,8 @@ ${colors.cyan}Optionen:${colors.reset}
   ${colors.green}-d, --disconnect <name>${colors.reset}  Projekt trennen
   ${colors.green}-s, --status [name]${colors.reset}      Projekt-Status anzeigen
   ${colors.green}--update-scripts <name>${colors.reset}  NPM Scripts zu package.json hinzufügen
+  ${colors.green}--storage [mode]${colors.reset}         Storage-Modus anzeigen/ändern
+  ${colors.green}--migrate-storage <name>${colors.reset} Projekt-Storage migrieren
   ${colors.green}-h, --help${colors.reset}               Diese Hilfe anzeigen
 
 ${colors.cyan}Fokussierte Ansichten:${colors.reset}
@@ -829,6 +950,7 @@ ${colors.cyan}Fokussierte Ansichten:${colors.reset}
   ${colors.green}relations [name]${colors.reset}         Issue-Beziehungen anzeigen
   ${colors.green}critical [name]${colors.reset}          Nur kritische Issues anzeigen
   ${colors.green}structure [name]${colors.reset}         Projektstruktur als narrative Beschreibung
+  ${colors.green}doctor${colors.reset}                   Diagnose der Installation und Konfiguration
 
 ${colors.cyan}Beispiele:${colors.reset}
   cn -k                                      # SSH-Key einrichten
@@ -939,6 +1061,26 @@ switch (option) {
         
     case 'structure':
         runStructureCommand(argument);
+        break;
+        
+    case 'doctor':
+    case '--doctor':
+        runDoctorCommand();
+        break;
+        
+    case '--storage':
+        if (!argument) {
+            showStorageInfo();
+        } else if (argument === 'local' || argument === 'embedded' || argument === 'hybrid') {
+            setStorageMode(argument);
+        } else {
+            console.error(`${colors.red}Ungültiger Storage-Modus: ${argument}${colors.reset}`);
+            console.log(`Verfügbare Modi: local, embedded, hybrid`);
+        }
+        break;
+        
+    case '--migrate-storage':
+        migrateProjectStorage(argument);
         break;
         
     case '-h':
