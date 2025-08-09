@@ -62,8 +62,8 @@ function updateProjectGitignore(projectPath) {
         'context-now-logs/',
         'tools/context-now/*.json',
         '!tools/context-now/*.template.json',
-        'tools/context-tracker/*.json',
-        '!tools/context-tracker/*.template.json',
+        'tools/context-now/*.json',
+        '!tools/context-now/*.template.json',
         '',
         '# Prevent accidental context-now repository commits',
         '.context-now/',
@@ -131,11 +131,11 @@ function cleanupGitIssues(projectPath) {
             }
             
             try {
-                execSync('git rm --cached -rf tools/context-tracker 2>/dev/null', { 
+                execSync('git rm --cached -rf tools/context-now 2>/dev/null', { 
                     cwd: projectPath,
                     stdio: 'pipe'
                 });
-                console.log(`${colors.green}✅ tools/context-tracker/ aus Git-Cache entfernt${colors.reset}`);
+                console.log(`${colors.green}✅ tools/context-now/ aus Git-Cache entfernt${colors.reset}`);
             } catch (e) {
                 // Ignoriere Fehler wenn Dateien nicht existieren
             }

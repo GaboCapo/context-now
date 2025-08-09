@@ -77,25 +77,50 @@ See [Migration Guide](docs/MIGRATION.md) for full details.
 
 ## 🚀 Installation
 
-### Quick Installation (Recommended)
-```bash
-# One-command installation
-curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/quick-setup.sh | bash
+> ⚠️ **Important**: Context-Now is **NOT an official NPM package**. We use NPM features for professional installation without publishing to npmjs.com.
 
-# Or with git clone + installer
+### Recommended: NPM Link Method
+```bash
+# 1. Clone repository
 git clone https://github.com/GaboCapo/context-now.git ~/Code/context-now
-cd ~/Code/context-now && ./install.sh
+cd ~/Code/context-now
+
+# 2. Install dependencies
+npm install
+
+# 3. Make globally available (without publishing!)
+npm link
+
+# 4. Verify installation
+cn --version
+```
+
+**What is npm link?** It creates a global symlink to your local code, giving you all NPM features without publishing. [Learn more →](docs/NPM-LINK-EXPLAINED.md)
+
+### Alternative: Direct from GitHub
+```bash
+# Install directly from GitHub (no npmjs.com!)
+npm install -g github:GaboCapo/context-now
+```
+
+### Alternative: Shell Script
+```bash
+# Traditional installation without NPM
+curl -sSL https://raw.githubusercontent.com/GaboCapo/context-now/main/quick-setup.sh | bash
 ```
 
 ### What gets installed?
-- ✅ Context-Now in `~/.context-now`
+- ✅ Global `cn` command
 - ✅ Configuration in `~/.config/context-now`
-- ✅ Aliases: `cn`, `kontext`, `context`
-- ✅ Auto-completion for bash/zsh/fish
-- ✅ Environment variables
-- ✅ Helper functions (cn-update, cn-backup, cn-edit)
+- ✅ Full NPM dependency management
+- ✅ Live updates with npm link
+- ✅ No npmjs.com account needed
+- ✅ No public package responsibility
 
-See [installation-complete.md](docs/en/installation-complete.md) for all options.
+📚 **Documentation:**
+- [Installation Guide](docs/INSTALLATION-2024.md) - Detailed installation instructions
+- [NPM Link Explained](docs/NPM-LINK-EXPLAINED.md) - Understanding npm link
+- [Command Reference](docs/COMMANDS.md) - All available commands
 
 ## 📋 Usage
 
@@ -252,31 +277,59 @@ rm -f ~/.config/fish/functions/cn-*.fish
    - `npm run context-now:sync` - Sync repository
    - `npm run context-now:update` - Sync + Status
 
-## 📂 Structure
+## 🛠️ New in v3.0
 
+### 🩺 Doctor Command
+```bash
+cn doctor  # Full system diagnosis
 ```
-context-now/
-├── context-now.js         # Multi-project manager
-├── cn                     # Launcher script
-├── projects.json          # Project registry
-└── tools/
-    └── context-tracker/
-        ├── context-tracker.js    # Main script (shared via symlink)
-        ├── *.template.json        # Templates (shared)
-        └── DATA_SOURCES.md        # Documentation
-```
+Shows installation health, storage locations, and optimization tips.
 
-Projects:
+### 📊 Performance Management
+```bash
+cn stats              # Statistical view for large repos
+cn performance-test   # Test with known large repositories
+```
+Handles repos with 1000+ issues intelligently.
+
+### 🗂️ Flexible Storage
+```bash
+cn --storage          # Show current mode
+cn --storage local    # Store in ~/.config, not in projects
+```
+Choose where to store data: embedded in projects or centrally.
+
+### 📝 Project Structure
+```bash
+cn structure          # Generate narrative project description
+```
+Text-based project structure for documentation.
+
+## 📂 Storage Modes
+
+Context-Now supports flexible data storage:
+
+### Embedded Mode (Default)
 ```
 your-project/
 └── tools/
-    └── context-tracker/
-        ├── context-tracker.js → symlink
-        ├── *.template.json → symlinks
-        ├── issues.json (project-specific)
-        ├── prs.json (project-specific)
+    └── context-now/     # Data stored in project
+        ├── issues.json
+        ├── prs.json
         └── ...
 ```
+
+### Local Mode (Clean Projects)
+```
+~/.config/context-now/
+└── projects/
+    └── your-project/    # Data stored centrally
+        ├── issues.json
+        ├── prs.json
+        └── ...
+```
+
+Switch modes anytime: `cn --storage local`
 
 ## 🎯 Example Workflow
 
@@ -291,7 +344,7 @@ cd ~/Code/my-project
 npm run context-now
 
 # 4. Fill JSON files with real data
-vim tools/context-tracker/issues.json
+vim tools/context-now/issues.json
 
 # 5. Check status again
 npm run context-now
@@ -387,7 +440,7 @@ For a comprehensive guide, please see the [**Full Documentation**](./docs/en/ind
 
 Key documents include:
 - [**Installation Complete Guide**](docs/en/installation-complete.md) - Overview of all installed components.
-- [**Data Sources Documentation**](tools/context-tracker/DATA_SOURCES.md) - A deep dive into the tool's data.
+- [**Data Sources Documentation**](tools/context-now/DATA_SOURCES.md) - A deep dive into the tool's data.
 
 ---
 

@@ -162,7 +162,7 @@ All commands are copy-paste ready for immediate execution!
 
 ## Maintaining JSON Files
 
-The accuracy of the tool depends on the timeliness of the project-specific JSON files. These are located in the `tools/context-tracker` directory of your project.
+The accuracy of the tool depends on the timeliness of the project-specific JSON files. These are located in the `tools/context-now` directory of your project (or in `~/.config/context-now/projects/` if using local storage mode).
 
 - **`issues.json`**:
   A list of issues, ideally with status, priority, and labels.

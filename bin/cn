@@ -3,25 +3,30 @@
 /**
  * Context-Now CLI Binary
  * ======================
- * NPM-kompatibler Entry Point
+ * Entry point for npm link / npm install
+ * 
+ * This wrapper allows both implementations:
+ * - context-now.js (full featured original)
+ * - lib/cli.js (secure NPM version)
  */
 
-// Aktiviere strict mode für bessere Sicherheit
 'use strict';
 
-// Setze Prozess-Titel für bessere Identifikation
-process.title = 'context-now';
+const path = require('path');
+const fs = require('fs');
 
-// Lade die CLI mit Fehlerbehandlung
-try {
-    require('../lib/cli');
-} catch (error) {
-    // Sichere Fehlerausgabe ohne Stack-Traces in Produktion
-    if (process.env.NODE_ENV === 'development') {
-        console.error('Error:', error);
-    } else {
-        console.error(`Error: ${error.message}`);
-        console.error('Run with NODE_ENV=development for more details');
-    }
+// Determine which implementation to use
+const contextNowPath = path.join(__dirname, '..', 'context-now.js');
+const cliPath = path.join(__dirname, '..', 'lib', 'cli.js');
+
+// Use context-now.js if it exists (full implementation)
+if (fs.existsSync(contextNowPath)) {
+    require(contextNowPath);
+} else if (fs.existsSync(cliPath)) {
+    // Fallback to lib/cli.js (NPM package version)
+    require(cliPath);
+} else {
+    console.error('Error: Context-Now implementation not found');
+    console.error('Please ensure installation is complete');
     process.exit(1);
 }
