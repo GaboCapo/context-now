@@ -651,6 +651,119 @@ function migrateProjectStorage(projectName) {
     console.log(`${colors.yellow}Verwenden Sie: cn --storage <modus>${colors.reset}`);
 }
 
+// Run stats command for large repositories
+function runStatsCommand(projectName) {
+    const projects = loadProjects();
+    const performance = require('./lib/commands/performance');
+    
+    // Determine which project to use
+    let targetProject = null;
+    let targetPath = null;
+    
+    if (projectName) {
+        if (projects[projectName]) {
+            targetProject = projectName;
+            targetPath = projects[projectName].path;
+        } else {
+            console.error(`${colors.red}❌ Projekt '${projectName}' nicht gefunden${colors.reset}`);
+            return;
+        }
+    } else {
+        const currentDir = process.cwd();
+        for (const [name, data] of Object.entries(projects)) {
+            if (data.path === currentDir) {
+                targetProject = name;
+                targetPath = data.path;
+                break;
+            }
+        }
+        
+        if (!targetProject) {
+            console.error(`${colors.red}❌ Kein Projekt im aktuellen Verzeichnis${colors.reset}`);
+            return;
+        }
+    }
+    
+    console.log(`${colors.cyan}📊 Generating statistics for ${targetProject}...${colors.reset}\n`);
+    
+    try {
+        // Load project data
+        const namespace = projects[targetProject].namespace || 'context-now';
+        const dataPath = path.join(targetPath, 'tools', namespace);
+        
+        let issues = [];
+        let prs = [];
+        let branches = [];
+        
+        // Try to load JSON files
+        const issuesFile = path.join(dataPath, 'issues.json');
+        const prsFile = path.join(dataPath, 'prs.json');
+        const branchesFile = path.join(dataPath, 'github-branches.json');
+        
+        if (fs.existsSync(issuesFile)) {
+            issues = JSON.parse(fs.readFileSync(issuesFile, 'utf8'));
+        }
+        if (fs.existsSync(prsFile)) {
+            prs = JSON.parse(fs.readFileSync(prsFile, 'utf8'));
+        }
+        if (fs.existsSync(branchesFile)) {
+            branches = JSON.parse(fs.readFileSync(branchesFile, 'utf8'));
+        }
+        
+        // Check performance
+        const analysis = performance.analyzeRepositoryScale(issues, prs, branches);
+        
+        // Show performance warnings
+        if (analysis.requiresOptimization) {
+            console.log(analysis.recommendations);
+            console.log('');
+        }
+        
+        // Generate statistics
+        if (issues.length > 0) {
+            console.log(performance.generateStats(issues, 'issues'));
+            console.log('');
+        }
+        
+        if (prs.length > 0) {
+            console.log(performance.generateStats(prs, 'pull requests'));
+            console.log('');
+        }
+        
+        // Summary
+        console.log(`${colors.bright}Overall Repository Scale${colors.reset}`);
+        console.log('─'.repeat(50));
+        console.log(`Issues: ${analysis.scale.issues.message}`);
+        console.log(`PRs: ${analysis.scale.prs.message}`);
+        console.log(`Branches: ${analysis.scale.branches.message}`);
+        
+    } catch (e) {
+        console.error(`${colors.red}Error generating statistics:${colors.reset}`, e.message);
+    }
+}
+
+// Run performance test
+function runPerformanceTest(repoName) {
+    const performance = require('./lib/commands/performance');
+    
+    if (!repoName) {
+        console.log(`${colors.cyan}📊 Known Large Repositories for Testing:${colors.reset}\n`);
+        
+        Object.entries(performance.EXAMPLE_REPOS).forEach(([key, repo]) => {
+            console.log(`${colors.green}${key}${colors.reset}`);
+            console.log(`  ${repo.name} - ${repo.issues}`);
+            console.log(`  Complexity: ${repo.complexity}`);
+            console.log('');
+        });
+        
+        console.log(`${colors.dim}Usage: cn performance-test <repo-name>${colors.reset}`);
+        return;
+    }
+    
+    // Generate example analysis
+    console.log(performance.generateExampleAnalysis(repoName));
+}
+
 // Run structure command
 function runStructureCommand(projectName) {
     const projects = loadProjects();
@@ -951,6 +1064,8 @@ ${colors.cyan}Fokussierte Ansichten:${colors.reset}
   ${colors.green}critical [name]${colors.reset}          Nur kritische Issues anzeigen
   ${colors.green}structure [name]${colors.reset}         Projektstruktur als narrative Beschreibung
   ${colors.green}doctor${colors.reset}                   Diagnose der Installation und Konfiguration
+  ${colors.green}stats [name]${colors.reset}             Statistiken für große Repositories
+  ${colors.green}performance-test [repo]${colors.reset}  Performance-Test für Repository
 
 ${colors.cyan}Beispiele:${colors.reset}
   cn -k                                      # SSH-Key einrichten
@@ -1066,6 +1181,14 @@ switch (option) {
     case 'doctor':
     case '--doctor':
         runDoctorCommand();
+        break;
+        
+    case 'stats':
+        runStatsCommand(argument);
+        break;
+        
+    case 'performance-test':
+        runPerformanceTest(argument);
         break;
         
     case '--storage':

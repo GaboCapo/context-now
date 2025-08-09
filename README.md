@@ -25,6 +25,10 @@ An intelligent tool for managing Git project contexts, issues, branches and pull
   - Warns about uncommitted changes
   - Suggests branch cleanup strategies
   - Provides context-aware next steps
+- **📊 Enterprise Scale**: Handles repositories with thousands of issues ([see demos](docs/DEMO-REPOSITORIES.md))
+  - Automatic performance optimization
+  - Smart chunking for large datasets
+  - Statistical views for massive repos
 - **Developer Handover**: Special modes for seamless team handovers
 - **Multi-Project Support**: Manage multiple Git projects with one tool
 - **SSH Config Support**: Works with custom SSH configs (e.g., `git@github.com-work:owner/repo`)
@@ -123,6 +127,17 @@ cn -s my-project           # Specific project
 ```bash
 cn -d my-project
 ```
+
+## 🚀 Performance & Scale
+
+Context-Now has been tested with some of the largest repositories on GitHub:
+
+- **microsoft/vscode**: ~8,000+ issues ⚠️ (requires chunking)
+- **kubernetes/kubernetes**: ~2,000+ issues ⚠️ (high impact)
+- **facebook/react**: ~1,000+ issues ✅ (good performance)
+- **tensorflow/tensorflow**: ~2,500+ issues ⚠️ (needs optimization)
+
+👉 **[See detailed performance demos and examples](docs/DEMO-REPOSITORIES.md)**
 
 ## 📊 Example Output
 
