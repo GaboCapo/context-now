@@ -532,6 +532,58 @@ function showProjectStatus(projectName) {
     }
 }
 
+// Run structure command
+function runStructureCommand(projectName) {
+    const projects = loadProjects();
+    
+    // Determine which project to use
+    let targetProject = null;
+    let targetPath = null;
+    
+    if (projectName) {
+        // Specific project requested
+        if (projects[projectName]) {
+            targetProject = projectName;
+            targetPath = projects[projectName].path;
+        } else {
+            console.error(`${colors.red}❌ Projekt '${projectName}' nicht gefunden${colors.reset}`);
+            listProjects();
+            return;
+        }
+    } else {
+        // Try to find current project
+        const currentDir = process.cwd();
+        for (const [name, data] of Object.entries(projects)) {
+            if (data.path === currentDir) {
+                targetProject = name;
+                targetPath = data.path;
+                break;
+            }
+        }
+        
+        if (!targetProject) {
+            // No project in current dir, use current dir directly
+            targetPath = currentDir;
+            console.log(`${colors.cyan}📂 Analysiere aktuelles Verzeichnis...${colors.reset}`);
+        } else {
+            console.log(`${colors.cyan}🎯 Projekt: ${targetProject}${colors.reset}`);
+        }
+    }
+    
+    console.log(`${colors.dim}Pfad: ${targetPath}${colors.reset}\n`);
+    
+    try {
+        const generateProjectStructure = require('./lib/commands/structure');
+        generateProjectStructure(targetPath, {
+            maxLevel: 4,
+            format: 'narrative',
+            output: 'console'
+        });
+    } catch (e) {
+        console.error(`${colors.red}Fehler beim Generieren der Struktur:${colors.reset}`, e.message);
+    }
+}
+
 // SSH-Key einrichten und verbinden
 function setupSSHKey() {
     console.log(`${colors.bright}🔐 SSH-Deploy-Key Einrichtung${colors.reset}\n`);
@@ -776,6 +828,7 @@ ${colors.cyan}Fokussierte Ansichten:${colors.reset}
   ${colors.green}prs [name]${colors.reset}               Alle Pull Requests anzeigen
   ${colors.green}relations [name]${colors.reset}         Issue-Beziehungen anzeigen
   ${colors.green}critical [name]${colors.reset}          Nur kritische Issues anzeigen
+  ${colors.green}structure [name]${colors.reset}         Projektstruktur als narrative Beschreibung
 
 ${colors.cyan}Beispiele:${colors.reset}
   cn -k                                      # SSH-Key einrichten
@@ -882,6 +935,10 @@ switch (option) {
     case 'relations':
     case 'critical':
         runFocusedCommand(option, argument);
+        break;
+        
+    case 'structure':
+        runStructureCommand(argument);
         break;
         
     case '-h':
