@@ -764,6 +764,49 @@ function runPerformanceTest(repoName) {
     console.log(performance.generateExampleAnalysis(repoName));
 }
 
+// Run clean command
+function runCleanCommand() {
+    try {
+        const { interactiveClean } = require('./lib/commands/clean');
+        interactiveClean();
+    } catch (e) {
+        console.error(`${colors.red}Error running clean:${colors.reset}`, e.message);
+    }
+}
+
+// Run sync command  
+function runSyncCommand(projectName) {
+    const projects = loadProjects();
+    
+    // Get project path
+    let projectPath;
+    if (projectName && projects[projectName]) {
+        projectPath = projects[projectName].path;
+    } else {
+        projectPath = process.cwd();
+    }
+    
+    try {
+        const { sync } = require('./lib/commands/sync');
+        
+        // Parse options from args
+        const args = process.argv.slice(3);
+        const options = {};
+        
+        if (args.includes('--stash')) options.stash = true;
+        if (args.includes('--strategy')) {
+            const idx = args.indexOf('--strategy');
+            if (args[idx + 1]) {
+                options.strategy = args[idx + 1];
+            }
+        }
+        
+        sync(projectPath, options);
+    } catch (e) {
+        console.error(`${colors.red}Error during sync:${colors.reset}`, e.message);
+    }
+}
+
 // Run structure command
 function runStructureCommand(projectName) {
     const projects = loadProjects();
@@ -1189,6 +1232,14 @@ switch (option) {
         
     case 'performance-test':
         runPerformanceTest(argument);
+        break;
+        
+    case 'clean':
+        runCleanCommand();
+        break;
+        
+    case 'sync':
+        runSyncCommand(argument);
         break;
         
     case '--storage':
